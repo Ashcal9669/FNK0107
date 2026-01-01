@@ -30,6 +30,37 @@ function showToast(message, isError = false) {
   setTimeout(() => toast.classList.add("hidden"), 2200);
 }
 
+function setActivityState(itemId, running) {
+  const item = $(itemId);
+  if (!item) {
+    return;
+  }
+  item.dataset.state = running ? "running" : "stopped";
+  const stateText = running ? "Running" : "Stopped";
+  const metaText = running ? "Active" : "Idle";
+  const stateEl = item.querySelector(".activity-state");
+  const metaEl = item.querySelector(".activity-meta");
+  if (stateEl) {
+    stateEl.textContent = stateText;
+  }
+  if (metaEl) {
+    metaEl.textContent = metaText;
+  }
+}
+
+function setActivityUpdated(timestamp) {
+  const el = $("activity-updated");
+  if (!el) {
+    return;
+  }
+  if (!timestamp) {
+    el.textContent = "Updated --";
+    return;
+  }
+  const timeLabel = new Date(timestamp * 1000).toLocaleTimeString();
+  el.textContent = `Updated ${timeLabel}`;
+}
+
 function rgbToHex(r, g, b) {
   return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 }
@@ -211,6 +242,12 @@ function updateStatus(data) {
   $("led-custom-toggle").textContent = latestProcesses.led ? "Stop" : "Start";
   $("fan-custom-toggle").textContent = latestProcesses.fan ? "Stop" : "Start";
   $("oled-toggle").textContent = latestProcesses.oled ? "Stop" : "Start";
+
+  setActivityState("activity-web", true);
+  setActivityState("activity-led", latestProcesses.led);
+  setActivityState("activity-fan", latestProcesses.fan);
+  setActivityState("activity-oled", latestProcesses.oled);
+  setActivityUpdated(system.timestamp);
 }
 
 async function refreshStatus() {

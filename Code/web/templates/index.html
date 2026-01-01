@@ -281,6 +281,58 @@
           <button class="secondary" type="button" id="oled-toggle">Start</button>
         </div>
       </section>
+
+      <section class="card" style="--delay: 0.25s">
+        <div class="card-header">
+          <div>
+            <h2>Live Activity</h2>
+            <p>See which background processes are currently running.</p>
+          </div>
+          <div class="chip" id="activity-updated">Updated --</div>
+        </div>
+        <div class="activity-list">
+          <div class="activity-item" id="activity-web" data-state="running">
+            <div class="activity-left">
+              <span class="activity-dot"></span>
+              <div>
+                <div class="activity-title">Web UI</div>
+                <div class="activity-meta">Active</div>
+              </div>
+            </div>
+            <span class="activity-state">Running</span>
+          </div>
+          <div class="activity-item" id="activity-led" data-state="stopped">
+            <div class="activity-left">
+              <span class="activity-dot"></span>
+              <div>
+                <div class="activity-title">LED Task</div>
+                <div class="activity-meta">Idle</div>
+              </div>
+            </div>
+            <span class="activity-state">Stopped</span>
+          </div>
+          <div class="activity-item" id="activity-fan" data-state="stopped">
+            <div class="activity-left">
+              <span class="activity-dot"></span>
+              <div>
+                <div class="activity-title">Fan Task</div>
+                <div class="activity-meta">Idle</div>
+              </div>
+            </div>
+            <span class="activity-state">Stopped</span>
+          </div>
+          <div class="activity-item" id="activity-oled" data-state="stopped">
+            <div class="activity-left">
+              <span class="activity-dot"></span>
+              <div>
+                <div class="activity-title">OLED Task</div>
+                <div class="activity-meta">Idle</div>
+              </div>
+            </div>
+            <span class="activity-state">Stopped</span>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="footer">
