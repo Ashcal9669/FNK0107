@@ -10,7 +10,11 @@ class ConfigManager:
         Args:
             config_file (str): Configuration file path
         """
-        self.expansion = Expansion()
+        self.expansion = None
+        try:
+            self.expansion = Expansion()
+        except Exception as e:
+            print(f"Warning: Expansion board unavailable, using defaults. ({e})")
         self.config_file = config_file
         self.config_data = {}
         self.load_config()
@@ -124,34 +128,35 @@ class ConfigManager:
         fan_map_default = [0, 255]
         
         # Safely get configuration from expansion board
-        try:
-            led_mode = self.expansion.get_led_mode()
-            if led_mode == 4:
-                led_mode_default = 0
-            elif led_mode == 3:
-                led_mode_default = 1
-            elif led_mode == 2:
-                led_mode_default = 2
-            elif led_mode == 1:
-                led_mode_default = 3
-            elif led_mode == 0:
-                led_mode_default = 5
-                
-            fan_mode = self.expansion.get_fan_mode()
-            if fan_mode == 2:
-                fan_mode_default = 0
-            elif fan_mode == 3:
-                fan_mode_default = 1
-            elif fan_mode == 1:
-                fan_mode_default = 2
-            elif fan_mode == 0:
-                fan_mode_default = 4
-                
-            fan_temp_threshold_default = self.expansion.get_fan_threshold()
-            fan_temp_speed_default = self.expansion.get_fan_temp_mode_speed()
-            fan_map_default = self.expansion.get_fan_pi_following()
-        except Exception as e:
-            print(f"Error getting configuration from expansion board: {e}")
+        if self.expansion:
+            try:
+                led_mode = self.expansion.get_led_mode()
+                if led_mode == 4:
+                    led_mode_default = 0
+                elif led_mode == 3:
+                    led_mode_default = 1
+                elif led_mode == 2:
+                    led_mode_default = 2
+                elif led_mode == 1:
+                    led_mode_default = 3
+                elif led_mode == 0:
+                    led_mode_default = 5
+                    
+                fan_mode = self.expansion.get_fan_mode()
+                if fan_mode == 2:
+                    fan_mode_default = 0
+                elif fan_mode == 3:
+                    fan_mode_default = 1
+                elif fan_mode == 1:
+                    fan_mode_default = 2
+                elif fan_mode == 0:
+                    fan_mode_default = 4
+                    
+                fan_temp_threshold_default = self.expansion.get_fan_threshold()
+                fan_temp_speed_default = self.expansion.get_fan_temp_mode_speed()
+                fan_map_default = self.expansion.get_fan_pi_following()
+            except Exception as e:
+                print(f"Error getting configuration from expansion board: {e}")
         try:
             if not os.path.exists(self.config_file):
                 self.config_data = {
@@ -197,6 +202,14 @@ class ConfigManager:
                 print(f"Configuration file already exists: {self.config_file}")
         except Exception as e:
             print(f"Error creating configuration file: {e}")
+
+    def end(self):
+        """Close any hardware resources."""
+        try:
+            if self.expansion:
+                self.expansion.end()
+        except Exception as e:
+            print(f"Error closing expansion board: {e}")
 
     def __enter__(self):
         return self

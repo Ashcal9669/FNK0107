@@ -1,9 +1,43 @@
 # -*- coding: utf-8 -*-
-import smbus
+import os
 import time
 
+try:
+    import smbus
+except ImportError:
+    try:
+        import smbus2 as smbus
+    except ImportError:
+        smbus = None
+
+DEFAULT_I2C_ADDRESS = 0x21
+
+
+def _resolve_bus_number(bus_number):
+    if bus_number is not None:
+        return bus_number
+    env_bus = os.environ.get("FREENOVE_I2C_BUS")
+    if env_bus and env_bus.isdigit():
+        return int(env_bus)
+    for candidate in (1, 0, 2, 3):
+        if os.path.exists(f"/dev/i2c-{candidate}"):
+            return candidate
+    return 1
+
+
+def _resolve_address(address):
+    if address is not None:
+        return address
+    env_addr = os.environ.get("FREENOVE_I2C_ADDR")
+    if env_addr:
+        try:
+            return int(env_addr, 0)
+        except ValueError:
+            pass
+    return DEFAULT_I2C_ADDRESS
+
 class Expansion:
-    IIC_ADDRESS = 0x21
+    IIC_ADDRESS = DEFAULT_I2C_ADDRESS
     
     REG_I2C_ADDRESS = 0x00              # Set IIC address
     REG_LED_SPECIFIED = 0x01            # Set specified LED color
@@ -35,11 +69,28 @@ class Expansion:
     REG_VERSION = 0xfe                   # Get version
     REG_SAVE_FLASH = 0xff                # Save data
 
-    def __init__(self, bus_number=1, address=IIC_ADDRESS):
+    def __init__(self, bus_number=None, address=None):
         # Initialize I2C bus and address
-        self.bus_number = bus_number
-        self.bus = smbus.SMBus(self.bus_number)
-        self.address = address
+        self.bus_number = _resolve_bus_number(bus_number)
+        self.address = _resolve_address(address)
+        if smbus is None:
+            raise RuntimeError(
+                "smbus/smbus2 not available. Install python3-smbus or run: pip install smbus2"
+            )
+        try:
+            self.bus = smbus.SMBus(self.bus_number)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"I2C bus /dev/i2c-{self.bus_number} not found. Enable I2C and reboot."
+            ) from exc
+        except PermissionError as exc:
+            raise RuntimeError(
+                f"Permission denied opening /dev/i2c-{self.bus_number}. Add user to i2c group or run with sudo."
+            ) from exc
+        except OSError as exc:
+            raise RuntimeError(
+                f"I2C bus {self.bus_number} unavailable: {exc}"
+            ) from exc
 
     def write(self, reg, values):
         # Write data to I2C register

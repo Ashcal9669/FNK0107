@@ -37,6 +37,27 @@ Here is one of our product displays to give you a more intuitive understanding o
 
 For details, please refer to the table below.
 
+## Headless LAN Web UI (Debian 12/13)
+
+If you are running a headless or lite install, you can use the built-in web UI.
+
+Quick install (systemd service):
+1. `sudo ./scripts/install_headless.sh`
+2. Open `http://<pi-ip>:8080` from another device on the same LAN.
+
+Manual run:
+1. `cd Code`
+2. `python3 -m venv .venv && source .venv/bin/activate`
+3. `pip install -r requirements-headless.txt`
+4. `python3 web_server.py --host 0.0.0.0 --port 8080`
+5. Open `http://<pi-ip>:8080` from another device on the same LAN.
+
+Notes:
+- If `/dev/i2c-*` is missing, enable I2C in `raspi-config` or add `dtparam=i2c_arm=on` to `/boot/firmware/config.txt`, then reboot.
+- If I2C access is restricted, run with `sudo` or add your user to the `i2c` group.
+- Set `FREENOVE_I2C_BUS` or `FREENOVE_I2C_ADDR` to override the default I2C bus or address.
+- The web UI has no authentication; keep it on trusted networks.
+
 ## Product Model Overview
 
 
