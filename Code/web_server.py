@@ -238,6 +238,17 @@ def api_config():
     return jsonify(read_config())
 
 
+@app.get("/api/processes")
+def api_processes():
+    limit = clamp_int(request.args.get("limit"), 1, 20, 6)
+    return jsonify(
+        {
+            "timestamp": time.time(),
+            "processes": system_info.get_top_processes(limit=limit),
+        }
+    )
+
+
 @app.post("/api/led")
 def api_led():
     payload = request.get_json(silent=True) or {}

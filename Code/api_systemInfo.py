@@ -130,6 +130,29 @@ class SystemInformation:
         except Exception:
             return 0
 
+    def get_top_processes(self, limit=6):
+        """Get top processes by CPU usage with memory usage."""
+        processes = []
+        try:
+            for proc in psutil.process_iter(attrs=["pid", "name", "username"]):
+                try:
+                    cpu = proc.cpu_percent(interval=None)
+                    mem = proc.memory_percent()
+                    info = proc.info
+                    processes.append({
+                        "pid": info.get("pid"),
+                        "name": info.get("name") or "unknown",
+                        "user": info.get("username") or "unknown",
+                        "cpu_percent": round(cpu, 1),
+                        "memory_percent": round(mem, 1),
+                    })
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+            processes.sort(key=lambda item: (item["cpu_percent"], item["memory_percent"]), reverse=True)
+            return processes[:max(1, min(limit, 20))]
+        except Exception:
+            return []
+
 
 if __name__ == "__main__":
     system_information = SystemInformation()

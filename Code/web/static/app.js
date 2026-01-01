@@ -30,6 +30,75 @@ function showToast(message, isError = false) {
   setTimeout(() => toast.classList.add("hidden"), 2200);
 }
 
+function formatPercent(value) {
+  if (value == null || Number.isNaN(value)) {
+    return "--";
+  }
+  return `${value.toFixed(1)}%`;
+}
+
+function renderProcessList(processes) {
+  const list = $("process-list");
+  if (!list) {
+    return;
+  }
+  list.innerHTML = "";
+  if (!processes || processes.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "process-row";
+    empty.textContent = "No process data available.";
+    list.appendChild(empty);
+    return;
+  }
+  processes.forEach((proc) => {
+    const row = document.createElement("div");
+    row.className = "process-row";
+
+    const info = document.createElement("div");
+    info.className = "process-info";
+
+    const name = document.createElement("div");
+    name.className = "process-name";
+    name.textContent = `${proc.name || "unknown"} (pid ${proc.pid})`;
+
+    const user = document.createElement("div");
+    user.className = "process-user";
+    user.textContent = proc.user || "unknown";
+
+    info.appendChild(name);
+    info.appendChild(user);
+
+    const metrics = document.createElement("div");
+    metrics.className = "process-metrics";
+
+    const cpu = document.createElement("span");
+    cpu.textContent = `CPU ${formatPercent(proc.cpu_percent || 0)}`;
+
+    const mem = document.createElement("span");
+    mem.textContent = `MEM ${formatPercent(proc.memory_percent || 0)}`;
+
+    metrics.appendChild(cpu);
+    metrics.appendChild(mem);
+
+    row.appendChild(info);
+    row.appendChild(metrics);
+    list.appendChild(row);
+  });
+}
+
+function setProcessUpdated(timestamp) {
+  const el = $("process-updated");
+  if (!el) {
+    return;
+  }
+  if (!timestamp) {
+    el.textContent = "Updated --";
+    return;
+  }
+  const timeLabel = new Date(timestamp * 1000).toLocaleTimeString();
+  el.textContent = `Updated ${timeLabel}`;
+}
+
 function setActivityState(itemId, running) {
   const item = $(itemId);
   if (!item) {
@@ -250,6 +319,16 @@ function updateStatus(data) {
   setActivityUpdated(system.timestamp);
 }
 
+async function refreshProcesses() {
+  try {
+    const data = await fetchJson("/api/processes");
+    renderProcessList(data.processes || []);
+    setProcessUpdated(data.timestamp);
+  } catch (err) {
+    showToast(err.message || "Process refresh failed", true);
+  }
+}
+
 async function refreshStatus() {
   try {
     const data = await fetchJson("/api/status");
@@ -410,6 +489,8 @@ async function init() {
     await loadConfig();
     await refreshStatus();
     setInterval(refreshStatus, 1000);
+    await refreshProcesses();
+    setInterval(refreshProcesses, 5000);
   } catch (err) {
     showToast(err.message || "Startup failed", true);
   }
