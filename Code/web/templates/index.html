@@ -144,6 +144,11 @@
               <input type="range" min="0" max="255" value="255" id="led-blue" />
               <span class="value-pill" id="led-blue-value">255</span>
             </label>
+            <label class="field">
+              <span>Brightness</span>
+              <input type="range" min="0" max="100" value="100" id="led-brightness" />
+              <span class="value-pill" id="led-brightness-value">100</span>
+            </label>
           </div>
         </div>
         <div class="custom-row hidden" id="led-custom-row">
@@ -216,6 +221,15 @@
               <span>Max Duty</span>
               <input type="range" min="0" max="255" id="fan-pi-max" />
               <span class="value-pill" id="fan-pi-max-value">0</span>
+            </div>
+            <label class="field inline">
+              <span>RPi Fan Override</span>
+              <input type="checkbox" id="rpi-fan-override" />
+            </label>
+            <div class="field">
+              <span>RPi PWM</span>
+              <input type="range" min="0" max="255" id="rpi-fan-pwm" />
+              <span class="value-pill" id="rpi-fan-pwm-value">0</span>
             </div>
           </div>
 

@@ -169,6 +169,7 @@ class ConfigManager:
                         "red_value": 0,
                         "green_value": 0,
                         "blue_value": 255,
+                        "brightness": 100,
                         "task_name": "task_led.py",
                         "is_run_on_startup": True
                     },
@@ -177,6 +178,8 @@ class ConfigManager:
                         "mode1_fan_group1": 75,
                         "mode1_fan_group2": 75,
                         "mode1_fan_group3": 75,
+                        "rpi_manual_enable": False,
+                        "rpi_manual_pwm": 0,
                         "mode2_low_temp_threshold": fan_temp_threshold_default[0],
                         "mode2_high_temp_threshold": fan_temp_threshold_default[1],
                         "mode2_temp_schmitt": fan_temp_threshold_default[2],

@@ -70,6 +70,7 @@ class MainWindow(QMainWindow):
         self.led_mode = 0                                            # LED mode
         self.led_process = None                                      # LED process object
         self.led_slider_color = [0, 0, 0]                            # LED slider color values
+        self.led_brightness = 100                                    # LED brightness percentage
 
         self.fan_mode = 0                                            # Fan mode
         self.fan_manual_mode_duty = [75, 75, 75]                     # Fan manual mode duty cycle values for 3 fan groups
@@ -77,6 +78,8 @@ class MainWindow(QMainWindow):
         self.fan_temp_mode_duty = [75, 125, 175]                     # Fan temperature mode duty cycle parameters
         self.fan_pi_follows_duty_map = [0, 255]                      # Fan follows Raspberry Pi mode duty cycle mapping parameters
         self.fan_process = None                                      # Used to store running subprocess
+        self.rpi_fan_manual_enable = False                           # RPi fan manual override enabled
+        self.rpi_fan_manual_pwm = 0                                  # RPi fan manual PWM value
 
         self.oled_process = None                                     # OLED process object
 
@@ -144,6 +147,8 @@ class MainWindow(QMainWindow):
         self.led_slider_color[0] = self.config_manager.get_value('LED', 'red_value') or 0
         self.led_slider_color[1] = self.config_manager.get_value('LED', 'green_value') or 0
         self.led_slider_color[2] = self.config_manager.get_value('LED', 'blue_value') or 255
+        led_brightness = self.config_manager.get_value('LED', 'brightness')
+        self.led_brightness = 100 if led_brightness is None else led_brightness
 
         self.fan_mode = self.config_manager.get_value('Fan', 'mode') or 0
         self.fan_manual_mode_duty[0] = self.config_manager.get_value('Fan', 'mode1_fan_group1') or 75
@@ -157,6 +162,10 @@ class MainWindow(QMainWindow):
         self.fan_temp_mode_duty[2] = self.config_manager.get_value('Fan', 'mode2_high_speed') or 175
         self.fan_pi_follows_duty_map[0] = self.config_manager.get_value('Fan', 'mode3_min_speed_mapping') or 0
         self.fan_pi_follows_duty_map[1] = self.config_manager.get_value('Fan', 'mode3_max_speed_mapping') or 255
+        rpi_manual_enable = self.config_manager.get_value('Fan', 'rpi_manual_enable')
+        rpi_manual_pwm = self.config_manager.get_value('Fan', 'rpi_manual_pwm')
+        self.rpi_fan_manual_enable = False if rpi_manual_enable is None else rpi_manual_enable
+        self.rpi_fan_manual_pwm = 0 if rpi_manual_pwm is None else rpi_manual_pwm
 
         self.setting_led_task_is_running = self.config_manager.get_value('LED', 'is_run_on_startup') or False
         self.setting_fan_task_is_running = self.config_manager.get_value('Fan', 'is_run_on_startup') or False
@@ -210,7 +219,8 @@ class MainWindow(QMainWindow):
         self.led_tab.set_slider_color(0, self.led_slider_color[0])   # Set slider value
         self.led_tab.set_slider_color(1, self.led_slider_color[1])   # Set slider value
         self.led_tab.set_slider_color(2, self.led_slider_color[2])   # Set slider value
-        self.led_tab.set_title_color(self.led_slider_color)          # Set title color
+        self.led_tab.set_brightness_value(self.led_brightness)       # Set brightness value
+        self.led_tab.set_title_color(self._get_scaled_led_color())   # Set title color
         if self.led_mode in [0, 4, 5]:                               # If mode is 0, 4, 5, disable sliders
             self.led_tab.set_slider_control_state(False)  
         else:                                                        # If mode is 1, 2, 3, enable sliders
@@ -222,6 +232,9 @@ class MainWindow(QMainWindow):
         self.fan_tab.set_case_weight_slider_value(self.fan_temp_mode_duty)
         self.fan_tab.set_pi_weight_slider_map(self.fan_pi_follows_duty_map)
         self.fan_tab.set_manual_weight_slider_value(self.fan_manual_mode_duty)
+        self.fan_tab.set_pi_override_state(self.rpi_fan_manual_enable, self.rpi_fan_manual_pwm)
+        if self.rpi_fan_manual_enable:
+            self.system_info.set_raspberry_pi_fan_duty(self.rpi_fan_manual_pwm)
 
         # Load settings interface parameters
         self.setting_tab.btn_led_switch.setChecked(self.setting_led_task_is_running)
@@ -260,9 +273,11 @@ class MainWindow(QMainWindow):
         self.led_tab.led_slider_red.valueChanged.connect(self.led_slider_value_change_event)   
         self.led_tab.led_slider_green.valueChanged.connect(self.led_slider_value_change_event)  
         self.led_tab.led_slider_blue.valueChanged.connect(self.led_slider_value_change_event)
+        self.led_tab.led_slider_brightness.valueChanged.connect(self.led_brightness_value_change_event)
         self.led_tab.led_slider_red.sliderReleased.connect(self.led_slider_release_event)
         self.led_tab.led_slider_green.sliderReleased.connect(self.led_slider_release_event)
         self.led_tab.led_slider_blue.sliderReleased.connect(self.led_slider_release_event)
+        self.led_tab.led_slider_brightness.sliderReleased.connect(self.led_brightness_slider_release_event)
         self.led_tab.led_btn_default_config.clicked.connect(self.led_default_config_event)
         self.led_tab.led_btn_save_config.clicked.connect(self.led_save_config_event)
         self.led_tab.led_btn_edit_custom_code.clicked.connect(self.led_edit_custom_code_event)
@@ -287,6 +302,9 @@ class MainWindow(QMainWindow):
         self.fan_tab.fan_pi_pwm_max_slider.valueChanged.connect(self.fan_pi_follow_max_slider_value_change_event)
         self.fan_tab.fan_pi_pwm_min_slider.sliderReleased.connect(self.fan_pi_follow_slider_release_event)
         self.fan_tab.fan_pi_pwm_max_slider.sliderReleased.connect(self.fan_pi_follow_slider_release_event)
+        self.fan_tab.fan_pi_override_checkbox.clicked.connect(self.fan_pi_override_toggle_event)
+        self.fan_tab.fan_pi_override_slider.valueChanged.connect(self.fan_pi_override_slider_value_change_event)
+        self.fan_tab.fan_pi_override_slider.sliderReleased.connect(self.fan_pi_override_slider_release_event)
         self.fan_tab.fan_manual_slider_fan1.valueChanged.connect(self.fan_manual_slider_fan1_value_change_event)
         self.fan_tab.fan_manual_slider_fan2.valueChanged.connect(self.fan_manual_slider_fan2_value_change_event)
         self.fan_tab.fan_manual_slider_fan3.valueChanged.connect(self.fan_manual_slider_fan3_value_change_event)
@@ -338,6 +356,12 @@ class MainWindow(QMainWindow):
             # Get expansion board information
             rpi_fan_pwm = self.system_info.get_raspberry_pi_fan_duty()      # Raspberry Pi fan PWM
             case_fan_pwm = self.expansion.get_fan_duty()[:2]                # Case fan PWM values
+
+            if self.fan_mode == 1 and (self.fan_process is None or self.fan_process.poll() is not None):
+                mapped_duty = self._map_pi_pwm_to_case_duty(rpi_fan_pwm)
+                if mapped_duty is not None:
+                    self.expansion.set_fan_mode(1)
+                    self.expansion.set_fan_duty(mapped_duty, mapped_duty, mapped_duty)
             
             # Update progress controls
             # CPU usage
@@ -380,13 +404,29 @@ class MainWindow(QMainWindow):
         try:
             # Get LED tab color values
             if hasattr(self.led_tab, 'led_color_value'): # Check if attribute exists
-                r, g, b = self.led_slider_color
+                r, g, b = self._get_scaled_led_color()
                 hex_color = f"#{r:02X}{g:02X}{b:02X}"
                 if hasattr(self.monitoring_tab, 'setCircleProgressColor'):
                     for i in range(8):
                         self.monitoring_tab.setCircleProgressColor(i, [hex_color, '#444444'])
         except Exception as e:
             print(f"Error updating LED colors: {e}")
+
+    def _get_scaled_led_color(self):
+        brightness = max(0, min(100, int(self.led_brightness)))
+        scale = brightness / 100.0
+        return [int(round(channel * scale)) for channel in self.led_slider_color]
+
+    def _map_pi_pwm_to_case_duty(self, pi_pwm):
+        if pi_pwm is None or pi_pwm < 0:
+            return None
+        min_duty, max_duty = self.fan_pi_follows_duty_map
+        min_duty = max(0, min(255, int(min_duty)))
+        max_duty = max(0, min(255, int(max_duty)))
+        if max_duty < min_duty:
+            min_duty, max_duty = max_duty, min_duty
+        duty = min_duty + ((pi_pwm / 255.0) * (max_duty - min_duty))
+        return max(0, min(255, int(round(duty))))
     
     # LED interface signals and slot functions
     def set_led_process(self, enable = True):
@@ -416,17 +456,18 @@ class MainWindow(QMainWindow):
                 self.led_process = None
     def send_led_mode_to_expansion(self, led_mode):
         """Send LED mode to expansion board"""
+        scaled = self._get_scaled_led_color()
         if led_mode == 0:
             self.expansion.set_led_mode(4)                 
         elif led_mode == 1:
             self.expansion.set_led_mode(3)
-            self.expansion.set_all_led_color(self.led_slider_color[0],self.led_slider_color[1],self.led_slider_color[2])  
+            self.expansion.set_all_led_color(scaled[0], scaled[1], scaled[2])  
         elif led_mode == 2:
             self.expansion.set_led_mode(2)
-            self.expansion.set_all_led_color(self.led_slider_color[0],self.led_slider_color[1],self.led_slider_color[2])    
+            self.expansion.set_all_led_color(scaled[0], scaled[1], scaled[2])    
         elif led_mode == 3:
             self.expansion.set_led_mode(1)
-            self.expansion.set_all_led_color(self.led_slider_color[0],self.led_slider_color[1],self.led_slider_color[2])  
+            self.expansion.set_all_led_color(scaled[0], scaled[1], scaled[2])  
         elif led_mode == 5:
             self.expansion.set_led_mode(0)
     def led_radio_clicked_event(self):
@@ -453,20 +494,37 @@ class MainWindow(QMainWindow):
         self.led_slider_color[1] = self.led_tab.led_slider_green.value()
         self.led_slider_color[2] = self.led_tab.led_slider_blue.value()
         self.led_tab.set_slider_slider_value(self.led_slider_color)
+        self.led_tab.set_title_color(self._get_scaled_led_color())
+
+    def led_brightness_value_change_event(self):
+        """Handle LED brightness slider value change event"""
+        self.led_brightness = self.led_tab.led_slider_brightness.value()
+        self.led_tab.led_lable_brightness_slider_value.setText(str(self.led_brightness))
+        self.led_tab.set_title_color(self._get_scaled_led_color())
     def led_slider_release_event(self):
         """Handle LED slider release event"""
         self.led_slider_color[0] = self.led_tab.led_slider_red.value()
         self.led_slider_color[1] = self.led_tab.led_slider_green.value()
         self.led_slider_color[2] = self.led_tab.led_slider_blue.value()
-        self.expansion.set_all_led_color(self.led_slider_color[0],self.led_slider_color[1],self.led_slider_color[2])
+        scaled = self._get_scaled_led_color()
+        self.expansion.set_all_led_color(scaled[0], scaled[1], scaled[2])
+
+    def led_brightness_slider_release_event(self):
+        """Handle LED brightness slider release event"""
+        self.led_brightness = self.led_tab.led_slider_brightness.value()
+        self.led_tab.led_lable_brightness_slider_value.setText(str(self.led_brightness))
+        scaled = self._get_scaled_led_color()
+        self.expansion.set_all_led_color(scaled[0], scaled[1], scaled[2])
     def led_default_config_event(self):
         """Handle LED default configuration button click event"""
         self.led_mode = 0
         self.led_slider_color = [0, 0, 255]
+        self.led_brightness = 100
         self.set_led_process(False)
         self.led_tab.led_btn_test_coustom_code.setText("Test")
         self.led_tab.set_led_mode(self.led_mode)
         self.led_tab.set_slider_slider_value(self.led_slider_color)
+        self.led_tab.set_brightness_value(self.led_brightness)
         self.led_tab.set_slider_control_state(False) 
         self.send_led_mode_to_expansion(self.led_mode)
         self.led_save_config_event()
@@ -476,6 +534,7 @@ class MainWindow(QMainWindow):
         self.config_manager.set_value('LED', 'red_value', self.led_slider_color[0])
         self.config_manager.set_value('LED', 'green_value', self.led_slider_color[1])
         self.config_manager.set_value('LED', 'blue_value', self.led_slider_color[2])
+        self.config_manager.set_value('LED', 'brightness', self.led_brightness)
         self.config_manager.set_value('LED', 'is_run_on_startup', self.setting_led_task_is_running)
         self.config_manager.save_config()
         self.send_led_mode_to_expansion(self.led_mode)
@@ -555,11 +614,12 @@ class MainWindow(QMainWindow):
                 self.fan_temp_mode_duty[2]
             )
         elif mode == 1:
-            self.expansion.set_fan_mode(3)
-            self.expansion.set_fan_pi_following(
-                self.fan_pi_follows_duty_map[0],
-                self.fan_pi_follows_duty_map[1]
+            self.expansion.set_fan_mode(1)
+            mapped_duty = self._map_pi_pwm_to_case_duty(
+                self.system_info.get_raspberry_pi_fan_duty()
             )
+            if mapped_duty is not None:
+                self.expansion.set_fan_duty(mapped_duty, mapped_duty, mapped_duty)
         elif mode == 2:
             self.expansion.set_fan_mode(1)
             self.expansion.set_fan_duty(
@@ -642,8 +702,13 @@ class MainWindow(QMainWindow):
         self.fan_pi_follows_duty_map[1] = self.fan_tab.fan_pi_pwm_max_slider.value()
         self.fan_tab.set_pi_weight_slider_map(self.fan_pi_follows_duty_map)
     def fan_pi_follow_slider_release_event(self):
-        min_duty, max_duty = self.fan_pi_follows_duty_map
-        self.expansion.set_fan_pi_following(min_duty, max_duty)
+        if self.fan_mode == 1:
+            mapped_duty = self._map_pi_pwm_to_case_duty(
+                self.system_info.get_raspberry_pi_fan_duty()
+            )
+            if mapped_duty is not None:
+                self.expansion.set_fan_mode(1)
+                self.expansion.set_fan_duty(mapped_duty, mapped_duty, mapped_duty)
     def fan_manual_slider_fan1_value_change_event(self):
         self.fan_manual_mode_duty[0] = self.fan_tab.fan_manual_slider_fan1.value()
         self.fan_tab.set_manual_weight_slider_value(self.fan_manual_mode_duty)
@@ -656,6 +721,20 @@ class MainWindow(QMainWindow):
     def fan_manual_slider_release_event(self):
         d1, d2, d3 = self.fan_manual_mode_duty
         self.expansion.set_fan_duty(d1, d2, d3)
+    def fan_pi_override_toggle_event(self):
+        """Handle RPi fan override toggle event"""
+        self.rpi_fan_manual_enable = self.fan_tab.fan_pi_override_checkbox.isChecked()
+        self.fan_tab.fan_pi_override_slider.setEnabled(self.rpi_fan_manual_enable)
+        if self.rpi_fan_manual_enable:
+            self.system_info.set_raspberry_pi_fan_duty(self.rpi_fan_manual_pwm)
+        else:
+            self.system_info.set_raspberry_pi_fan_mode(2)
+    def fan_pi_override_slider_value_change_event(self):
+        self.rpi_fan_manual_pwm = self.fan_tab.fan_pi_override_slider.value()
+        self.fan_tab.fan_pi_override_value_label.setText(str(self.rpi_fan_manual_pwm))
+    def fan_pi_override_slider_release_event(self):
+        if self.rpi_fan_manual_enable:
+            self.system_info.set_raspberry_pi_fan_duty(self.rpi_fan_manual_pwm)
     def fan_default_config_event(self):
         """Handle FAN default configuration button click event"""
         self.fan_mode = 0                                            # Fan mode
@@ -663,6 +742,9 @@ class MainWindow(QMainWindow):
         self.fan_temp_mode_threshold = [30, 50, 3]                   # Fan temperature mode threshold parameters
         self.fan_temp_mode_duty = [75, 125, 175]                     # Fan temperature mode duty cycle parameters
         self.fan_pi_follows_duty_map = [0, 255]                      # Fan follows Raspberry Pi mode duty cycle mapping parameters
+        self.rpi_fan_manual_enable = False
+        self.rpi_fan_manual_pwm = 0
+        self.system_info.set_raspberry_pi_fan_mode(2)
         self.set_fan_process(False)
         self.fan_tab.fan_btn_test_coustom_code.setText("Test")
         self.fan_tab.set_fan_mode(self.fan_mode)
@@ -670,6 +752,7 @@ class MainWindow(QMainWindow):
         self.fan_tab.set_case_weight_temp(self.fan_temp_mode_threshold)
         self.fan_tab.set_case_weight_slider_value(self.fan_temp_mode_duty)
         self.fan_tab.set_pi_weight_slider_map(self.fan_pi_follows_duty_map)
+        self.fan_tab.set_pi_override_state(self.rpi_fan_manual_enable, self.rpi_fan_manual_pwm)
         self.send_fan_mode_to_expansion(self.fan_mode)
         self.fan_save_config_event()
     def fan_save_config_event(self):
@@ -678,6 +761,8 @@ class MainWindow(QMainWindow):
         self.config_manager.set_value('Fan', 'mode1_fan_group1', self.fan_manual_mode_duty[0])
         self.config_manager.set_value('Fan', 'mode1_fan_group2', self.fan_manual_mode_duty[1])
         self.config_manager.set_value('Fan', 'mode1_fan_group3', self.fan_manual_mode_duty[2])
+        self.config_manager.set_value('Fan', 'rpi_manual_enable', self.rpi_fan_manual_enable)
+        self.config_manager.set_value('Fan', 'rpi_manual_pwm', self.rpi_fan_manual_pwm)
         self.config_manager.set_value('Fan', 'mode2_low_temp_threshold', self.fan_temp_mode_threshold[0])
         self.config_manager.set_value('Fan', 'mode2_high_temp_threshold', self.fan_temp_mode_threshold[1])
         self.config_manager.set_value('Fan', 'mode2_temp_schmitt', self.fan_temp_mode_threshold[2])

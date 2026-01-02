@@ -20,9 +20,12 @@ class LedTab(QWidget):
         self.led_lable_green_slider_value = None    # Green slider value label
         self.led_lable_blue_slider_label = None     # Blue slider label
         self.led_lable_blue_slider_value = None     # Blue slider value label
+        self.led_lable_brightness_slider_label = None  # Brightness slider label
+        self.led_lable_brightness_slider_value = None  # Brightness slider value label
         self.led_slider_red = None                  # Red slider
         self.led_slider_green = None                # Green slider
         self.led_slider_blue = None                 # Blue slider
+        self.led_slider_brightness = None           # Brightness slider
         self.led_btn_save_config = None             # Save configuration button
         self.led_btn_default_config = None          # Restore default configuration button
         self.led_btn_edit_custom_code = None        # Edit custom code button
@@ -36,6 +39,7 @@ class LedTab(QWidget):
         self.led_slider_green_value = 0         # Green slider value
         self.led_slider_blue_value = 0          # Blue slider value
         self.led_color_value = [0, 0, 0]        # LED color value
+        self.led_brightness_value = 100         # LED brightness value
         self.led_process = None                 # Used to store running subprocess
         # Function area
         self.initUI()                        # Initialize interface
@@ -230,6 +234,43 @@ class LedTab(QWidget):
         self.led_slider_blue_layout.addWidget(self.led_lable_blue_slider_value, stretch=1)
         self.led_slider_blue_layout.setSpacing(10)
 
+        # Add brightness label, slider, slider value display
+        self.led_lable_brightness_slider_label = QLabel("Bright:")
+        self.led_lable_brightness_slider_label.setStyleSheet(self.slider_lable_style)
+        self.led_lable_brightness_slider_label.setFixedWidth(65)
+        self.led_slider_brightness = QSlider(Qt.Horizontal)
+        self.led_slider_brightness.setStyleSheet("""
+            QSlider {
+                border: 2px solid #444444;    /* Add external border */
+                border-radius: 5px;           /* Border rounded corners */
+                background-color: #333333;    /* Background color */
+                padding: 2px;                 /* Padding */
+            }
+            QSlider::groove:horizontal { 
+                background: #555555;  /* Groove color */
+                height: 20px;         /* Groove height */
+                border-radius: 5px;   /* Groove rounded corners */
+            }
+            QSlider::handle:horizontal {
+                background: #F7DC6F;  /* Handle color */
+                width: 40px;          /* Handle width */
+                height: 20px;         /* Handle height */
+                margin-top: -8px;    /* Move handle up */
+                margin-bottom: -8px; /* Move handle down */
+            }
+        """)
+        self.led_slider_brightness.setRange(0, 100)
+        self.led_slider_brightness.setValue(100)
+        self.led_lable_brightness_slider_value = QLabel("100")
+        self.led_lable_brightness_slider_value.setStyleSheet(self.slider_lable_style)
+        self.led_lable_brightness_slider_value.setFixedWidth(50)
+        # Create a horizontal layout
+        self.led_slider_brightness_layout = QHBoxLayout()
+        self.led_slider_brightness_layout.addWidget(self.led_lable_brightness_slider_label, stretch=1)
+        self.led_slider_brightness_layout.addWidget(self.led_slider_brightness, stretch=9)
+        self.led_slider_brightness_layout.addWidget(self.led_lable_brightness_slider_value, stretch=1)
+        self.led_slider_brightness_layout.setSpacing(10)
+
         # Create 4 buttons named: Save Config, Default Config, Create Task, Delete Task
         led_btn_style = """
             QPushButton {
@@ -274,6 +315,7 @@ class LedTab(QWidget):
         self.vbox_layout.addLayout(self.led_slider_red_layout)
         self.vbox_layout.addLayout(self.led_slider_green_layout)
         self.vbox_layout.addLayout(self.led_slider_blue_layout)
+        self.vbox_layout.addLayout(self.led_slider_brightness_layout)
         self.vbox_layout.addLayout(self.btn_layout)
 
         # Set main window
@@ -296,12 +338,15 @@ class LedTab(QWidget):
         self.led_lable_red_slider_label.setMaximumHeight(self.led_ui_height)
         self.led_lable_green_slider_label.setMaximumHeight(self.led_ui_height)
         self.led_lable_blue_slider_label.setMaximumHeight(self.led_ui_height)
+        self.led_lable_brightness_slider_label.setMaximumHeight(self.led_ui_height)
         self.led_lable_red_slider_value.setMaximumHeight(self.led_ui_height)
         self.led_lable_green_slider_value.setMaximumHeight(self.led_ui_height)
         self.led_lable_blue_slider_value.setMaximumHeight(self.led_ui_height)
+        self.led_lable_brightness_slider_value.setMaximumHeight(self.led_ui_height)
         self.led_slider_red.setMaximumHeight(self.led_ui_height)
         self.led_slider_green.setMaximumHeight(self.led_ui_height)
         self.led_slider_blue.setMaximumHeight(self.led_ui_height)
+        self.led_slider_brightness.setMaximumHeight(self.led_ui_height)
         self.led_btn_save_config.setMaximumHeight(self.led_ui_height)
         self.led_btn_default_config.setMaximumHeight(self.led_ui_height)
         self.led_btn_edit_custom_code.setMaximumHeight(self.led_ui_height)
@@ -389,6 +434,11 @@ class LedTab(QWidget):
             self.led_slider_blue.setValue(value)
             self.led_lable_blue_slider_value.setText(str(value))
 
+    def set_brightness_value(self, value):
+        """Set brightness slider value"""
+        self.led_slider_brightness.setValue(value)
+        self.led_lable_brightness_slider_value.setText(str(value))
+
     # Set title bar color
     def set_title_color(self, bg=(0, 0, 0), font=None):
         """Set title bar color"""
@@ -421,6 +471,7 @@ class LedTab(QWidget):
             self.led_slider_red.setEnabled(True)
             self.led_slider_green.setEnabled(True)
             self.led_slider_blue.setEnabled(True)
+            self.led_slider_brightness.setEnabled(True)
             self.led_slider_red.setStyleSheet("""
                 QSlider {
                     border: 2px solid #444444;    /* Add external border */
@@ -481,10 +532,31 @@ class LedTab(QWidget):
                     margin-bottom: -8px;  /* Move handle down */
                 }
             """)
+            self.led_slider_brightness.setStyleSheet("""
+                QSlider {
+                    border: 2px solid #444444;    /* Add external border */
+                    border-radius: 5px;           /* Border rounded corners */
+                    background-color: #333333;    /* Background color */
+                    padding: 2px;                /* Padding */
+                }
+                QSlider::groove:horizontal { 
+                    background: #555555;  /* Groove color */
+                    height: 20px;         /* Groove height */
+                    border-radius: 5px;   /* Groove rounded corners */
+                }
+                QSlider::handle:horizontal {
+                    background: #F7DC6F;  /* Handle color */
+                    width: 40px;          /* Handle width */
+                    height: 20px;         /* Handle height */
+                    margin-top: -8px;     /* Move handle up */
+                    margin-bottom: -8px;  /* Move handle down */
+                }
+            """)
         else:
             self.led_slider_red.setEnabled(False)
             self.led_slider_green.setEnabled(False)
             self.led_slider_blue.setEnabled(False)
+            self.led_slider_brightness.setEnabled(False)
             self.led_slider_red.setStyleSheet("""
                 QSlider {
                     border: 2px solid #444444;    /* Add external border */
@@ -539,6 +611,26 @@ class LedTab(QWidget):
                 }
                 QSlider::handle:horizontal {
                     background: #000088;  /* Handle color */
+                    width: 40px;          /* Handle width */
+                    height: 20px;         /* Handle height */
+                    margin-top: -8px;     /* Move handle up */
+                    margin-bottom: -8px;  /* Move handle down */
+                }
+            """)
+            self.led_slider_brightness.setStyleSheet("""
+                QSlider {
+                    border: 2px solid #444444;    /* Add external border */
+                    border-radius: 5px;           /* Border rounded corners */
+                    background-color: #333333;    /* Background color */
+                    padding: 2px;                /* Padding */
+                }
+                QSlider::groove:horizontal { 
+                    background: #555555;  /* Groove color */
+                    height: 20px;         /* Groove height */
+                    border-radius: 5px;   /* Groove rounded corners */
+                }
+                QSlider::handle:horizontal {
+                    background: #8a7b3f;  /* Handle color */
                     width: 40px;          /* Handle width */
                     height: 20px;         /* Handle height */
                     margin-top: -8px;     /* Move handle up */

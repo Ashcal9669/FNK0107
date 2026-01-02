@@ -55,6 +55,23 @@ def clamp_int(value, min_value, max_value, default):
     return max(min_value, min(max_value, ivalue))
 
 
+def scale_led_color(color, brightness):
+    brightness = max(0, min(100, int(brightness)))
+    scale = brightness / 100.0
+    return [int(round(channel * scale)) for channel in color]
+
+
+def map_pi_pwm_to_duty(pi_pwm, min_duty, max_duty):
+    if pi_pwm is None or pi_pwm < 0:
+        return None
+    min_duty = max(0, min(255, int(min_duty)))
+    max_duty = max(0, min(255, int(max_duty)))
+    if max_duty < min_duty:
+        min_duty, max_duty = max_duty, min_duty
+    duty = min_duty + ((pi_pwm / 255.0) * (max_duty - min_duty))
+    return max(0, min(255, int(round(duty))))
+
+
 def get_config_value(section, key, default):
     value = config_manager.get_value(section, key)
     return default if value is None else value
@@ -125,21 +142,22 @@ def write_config(update_fn):
         config_manager.save_config()
 
 
-def apply_led_mode(mode, color):
+def apply_led_mode(mode, color, brightness):
+    scaled = scale_led_color(color, brightness)
     if mode == 0:
         return "rainbow", [("set_led_mode", 4)]
     if mode == 1:
-        return "breathing", [("set_led_mode", 3), ("set_all_led_color", *color)]
+        return "breathing", [("set_led_mode", 3), ("set_all_led_color", *scaled)]
     if mode == 2:
-        return "follow", [("set_led_mode", 2), ("set_all_led_color", *color)]
+        return "follow", [("set_led_mode", 2), ("set_all_led_color", *scaled)]
     if mode == 3:
-        return "manual", [("set_led_mode", 1), ("set_all_led_color", *color)]
+        return "manual", [("set_led_mode", 1), ("set_all_led_color", *scaled)]
     if mode == 5:
         return "off", [("set_led_mode", 0)]
     return "custom", []
 
 
-def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow):
+def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm):
     if mode == 0:
         return "follow_case", [
             ("set_fan_mode", 2),
@@ -147,9 +165,11 @@ def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow):
             ("set_fan_temp_mode_speed", *speeds),
         ]
     if mode == 1:
+        mapped = map_pi_pwm_to_duty(pi_pwm, pi_follow[0], pi_follow[1])
+        duty_value = mapped if mapped is not None else manual_duty[0]
         return "follow_pi", [
-            ("set_fan_mode", 3),
-            ("set_fan_pi_following", *pi_follow),
+            ("set_fan_mode", 1),
+            ("set_fan_duty", duty_value, duty_value, duty_value),
         ]
     if mode == 2:
         return "manual", [
@@ -171,6 +191,34 @@ def set_save_flash(exp):
         pass
 
 
+def fan_follow_loop():
+    last_duty = None
+    while True:
+        try:
+            with config_lock:
+                config_manager.load_config()
+                mode = get_config_value("Fan", "mode", 0)
+                follow = [
+                    get_config_value("Fan", "mode3_min_speed_mapping", 0),
+                    get_config_value("Fan", "mode3_max_speed_mapping", 255),
+                ]
+            if mode == 1 and not process_is_running("fan"):
+                pi_pwm = system_info.get_raspberry_pi_fan_duty()
+                duty = map_pi_pwm_to_duty(pi_pwm, follow[0], follow[1])
+                if duty is not None and duty != last_duty:
+                    exp, exp_err = try_expansion()
+                    if not exp_err:
+                        with expansion_lock:
+                            exp.set_fan_mode(1)
+                            exp.set_fan_duty(duty, duty, duty)
+                        last_duty = duty
+            else:
+                last_duty = None
+        except Exception:
+            last_duty = None
+        time.sleep(1.0)
+
+
 @app.get("/")
 def index():
     return render_template("index.html")
@@ -188,6 +236,7 @@ def api_status():
         "disk_usage": system_info.get_raspberry_pi_disk_usage(),
         "cpu_temp_c": system_info.get_raspberry_pi_cpu_temperature(),
         "rpi_fan_pwm": system_info.get_raspberry_pi_fan_duty(),
+        "rpi_fan_mode": system_info.get_raspberry_pi_fan_mode(),
         "timestamp": time.time(),
     }
 
@@ -254,6 +303,7 @@ def api_led():
     payload = request.get_json(silent=True) or {}
     mode_raw = payload.get("mode")
     color = payload.get("color") or {}
+    brightness_raw = payload.get("brightness")
 
     with config_lock:
         config_manager.load_config()
@@ -263,16 +313,19 @@ def api_led():
             get_config_value("LED", "green_value", 0),
             get_config_value("LED", "blue_value", 255),
         ]
+        current_brightness = get_config_value("LED", "brightness", 100)
 
         mode = clamp_int(mode_raw, 0, 5, current_mode) if mode_raw is not None else current_mode
         red = clamp_int(color.get("r"), 0, 255, current_color[0])
         green = clamp_int(color.get("g"), 0, 255, current_color[1])
         blue = clamp_int(color.get("b"), 0, 255, current_color[2])
+        brightness = clamp_int(brightness_raw, 0, 100, current_brightness)
 
         config_manager.set_value("LED", "mode", mode)
         config_manager.set_value("LED", "red_value", red)
         config_manager.set_value("LED", "green_value", green)
         config_manager.set_value("LED", "blue_value", blue)
+        config_manager.set_value("LED", "brightness", brightness)
         config_manager.save_config()
 
     if mode == 4:
@@ -282,7 +335,7 @@ def api_led():
         exp, exp_err = try_expansion()
         if exp_err:
             return jsonify({"ok": False, "error": exp_err}), 500
-        _, calls = apply_led_mode(mode, [red, green, blue])
+        _, calls = apply_led_mode(mode, [red, green, blue], brightness)
         with expansion_lock:
             for call in calls:
                 method = getattr(exp, call[0])
@@ -381,12 +434,39 @@ def api_fan():
         exp, exp_err = try_expansion()
         if exp_err:
             return jsonify({"ok": False, "error": exp_err}), 500
-        _, calls = apply_fan_mode(mode, duty, thresh, speed, follow)
+        pi_pwm = system_info.get_raspberry_pi_fan_duty()
+        _, calls = apply_fan_mode(mode, duty, thresh, speed, follow, pi_pwm)
         with expansion_lock:
             for call in calls:
                 method = getattr(exp, call[0])
                 method(*call[1:])
             set_save_flash(exp)
+
+    return jsonify({"ok": True})
+
+
+@app.post("/api/rpi-fan")
+def api_rpi_fan():
+    payload = request.get_json(silent=True) or {}
+    enable_raw = payload.get("enable")
+    pwm_raw = payload.get("pwm")
+
+    with config_lock:
+        config_manager.load_config()
+        current_enable = bool(get_config_value("Fan", "rpi_manual_enable", False))
+        current_pwm = get_config_value("Fan", "rpi_manual_pwm", 0)
+        enable = current_enable if enable_raw is None else bool(enable_raw)
+        pwm = clamp_int(pwm_raw, 0, 255, current_pwm)
+        config_manager.set_value("Fan", "rpi_manual_enable", enable)
+        config_manager.set_value("Fan", "rpi_manual_pwm", pwm)
+        config_manager.save_config()
+
+    if enable:
+        ok = system_info.set_raspberry_pi_fan_duty(pwm)
+        if not ok:
+            return jsonify({"ok": False, "error": "Unable to set RPi fan PWM"}), 500
+    else:
+        system_info.set_raspberry_pi_fan_mode(2)
 
     return jsonify({"ok": True})
 
@@ -434,6 +514,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    threading.Thread(target=fan_follow_loop, daemon=True).start()
     app.run(host=args.host, port=args.port, debug=args.debug, use_reloader=False, threaded=True)
 
 

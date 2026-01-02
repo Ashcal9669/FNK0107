@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
 let latestProcesses = { led: false, fan: false, oled: false };
+let ledBrightness = 100;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -144,8 +145,18 @@ function hexToRgb(hex) {
   };
 }
 
+function applyBrightness(r, g, b, brightness) {
+  const scale = Math.max(0, Math.min(100, brightness)) / 100;
+  return {
+    r: Math.round(r * scale),
+    g: Math.round(g * scale),
+    b: Math.round(b * scale),
+  };
+}
+
 function updateLedColorPreview(r, g, b) {
-  $("led-color-preview").style.background = rgbToHex(r, g, b);
+  const scaled = applyBrightness(r, g, b, ledBrightness);
+  $("led-color-preview").style.background = rgbToHex(scaled.r, scaled.g, scaled.b);
 }
 
 function syncLedSliders(r, g, b) {
@@ -156,6 +167,16 @@ function syncLedSliders(r, g, b) {
   $("led-green-value").textContent = g;
   $("led-blue-value").textContent = b;
   $("led-color-picker").value = rgbToHex(r, g, b);
+  updateLedColorPreview(r, g, b);
+}
+
+function syncLedBrightness(value) {
+  ledBrightness = value;
+  $("led-brightness").value = value;
+  $("led-brightness-value").textContent = value;
+  const r = parseInt($("led-red").value, 10);
+  const g = parseInt($("led-green").value, 10);
+  const b = parseInt($("led-blue").value, 10);
   updateLedColorPreview(r, g, b);
 }
 
@@ -172,7 +193,7 @@ function setSelectedValue(name, value) {
 }
 
 function setLedControlsEnabled(enabled) {
-  ["led-color-picker", "led-red", "led-green", "led-blue"].forEach((id) => {
+  ["led-color-picker", "led-red", "led-green", "led-blue", "led-brightness"].forEach((id) => {
     $(id).disabled = !enabled;
   });
 }
@@ -216,6 +237,7 @@ async function loadConfig() {
 
   setSelectedValue("led-mode", led.mode ?? 0);
   syncLedSliders(led.red_value ?? 0, led.green_value ?? 0, led.blue_value ?? 255);
+  syncLedBrightness(led.brightness ?? 100);
   toggleLedCustom(led.mode ?? 0);
 
   setSelectedValue("fan-mode", fan.mode ?? 0);
@@ -241,6 +263,12 @@ async function loadConfig() {
   $("fan-duty-1-value").textContent = $("fan-duty-1").value;
   $("fan-duty-2-value").textContent = $("fan-duty-2").value;
   $("fan-duty-3-value").textContent = $("fan-duty-3").value;
+
+  const rpiManual = !!fan.rpi_manual_enable;
+  $("rpi-fan-override").checked = rpiManual;
+  $("rpi-fan-pwm").value = fan.rpi_manual_pwm ?? 0;
+  $("rpi-fan-pwm-value").textContent = $("rpi-fan-pwm").value;
+  $("rpi-fan-pwm").disabled = !rpiManual;
 
   toggleFanSections(fan.mode ?? 0);
 
@@ -343,11 +371,12 @@ async function applyLed() {
   const r = parseInt($("led-red").value, 10);
   const g = parseInt($("led-green").value, 10);
   const b = parseInt($("led-blue").value, 10);
+  const brightness = parseInt($("led-brightness").value, 10);
   try {
     await fetchJson("/api/led", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode, color: { r, g, b } }),
+      body: JSON.stringify({ mode, color: { r, g, b }, brightness }),
     });
     showToast("LED updated");
     toggleLedCustom(mode);
@@ -393,6 +422,22 @@ async function applyFan() {
     refreshStatus();
   } catch (err) {
     showToast(err.message || "Fan update failed", true);
+  }
+}
+
+async function applyRpiFan() {
+  const enable = $("rpi-fan-override").checked;
+  const pwm = parseInt($("rpi-fan-pwm").value, 10);
+  try {
+    await fetchJson("/api/rpi-fan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enable, pwm }),
+    });
+    showToast("RPi fan updated");
+    refreshStatus();
+  } catch (err) {
+    showToast(err.message || "RPi fan update failed", true);
   }
 }
 
@@ -453,6 +498,11 @@ function setupListeners() {
     });
   });
 
+  $("led-brightness").addEventListener("input", () => {
+    const value = parseInt($("led-brightness").value, 10);
+    syncLedBrightness(value);
+  });
+
   qsa('input[name="led-mode"]').forEach((input) => {
     input.addEventListener("change", () => {
       const mode = parseInt(input.value, 10);
@@ -465,6 +515,22 @@ function setupListeners() {
       const mode = parseInt(input.value, 10);
       toggleFanSections(mode);
     });
+  });
+
+  $("rpi-fan-override").addEventListener("change", () => {
+    const enabled = $("rpi-fan-override").checked;
+    $("rpi-fan-pwm").disabled = !enabled;
+    applyRpiFan();
+  });
+
+  $("rpi-fan-pwm").addEventListener("input", () => {
+    $("rpi-fan-pwm-value").textContent = $("rpi-fan-pwm").value;
+  });
+
+  $("rpi-fan-pwm").addEventListener("change", () => {
+    if ($("rpi-fan-override").checked) {
+      applyRpiFan();
+    }
   });
 
   [

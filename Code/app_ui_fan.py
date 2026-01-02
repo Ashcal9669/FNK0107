@@ -1,6 +1,6 @@
 # app_ui_fan.py
 import sys
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QApplication, QHBoxLayout, QSlider, QLabel, QPushButton, QRadioButton, QLineEdit
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QApplication, QHBoxLayout, QSlider, QLabel, QPushButton, QRadioButton, QLineEdit, QCheckBox
 from PyQt5.QtCore import Qt
 
 class FanTab(QWidget):
@@ -58,6 +58,11 @@ class FanTab(QWidget):
         self.fan_pi_pwm_max_slider = None                # Pi PWM follow maximum value slider
         self.fan_pi_pwm_min_value_lable = None           # Pi PWM follow minimum value display
         self.fan_pi_pwm_max_value_lable = None           # Pi PWM follow maximum value display
+        self.fan_pi_override_label = None                # Pi fan override label
+        self.fan_pi_override_checkbox = None             # Pi fan override checkbox
+        self.fan_pi_override_slider_label = None         # Pi fan override slider label
+        self.fan_pi_override_slider = None               # Pi fan override slider
+        self.fan_pi_override_value_label = None          # Pi fan override slider value label
         
         # Button controls
         self.fan_btn_save_config = None                  # Save configuration button
@@ -684,8 +689,65 @@ class FanTab(QWidget):
         self.fan_pi_pwm_max_slider_layout.addWidget(self.fan_pi_pwm_max_value_lable, stretch=1)
         self.fan_pi_pwm_max_slider_layout.setSpacing(10)
         
+        # Add RPi fan override toggle
+        self.fan_pi_override_label = QLabel("RPi Fan:")
+        self.fan_pi_override_label.setStyleSheet(self.slider_label_style)
+        self.fan_pi_override_label.setFixedWidth(90)
+        self.fan_pi_override_checkbox = QCheckBox("Override")
+        self.fan_pi_override_checkbox.setStyleSheet("""
+            QCheckBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+            }
+        """)
+        self.fan_pi_override_checkbox.setChecked(False)
+        pi_override_toggle_layout = QHBoxLayout()
+        pi_override_toggle_layout.addWidget(self.fan_pi_override_label, stretch=1)
+        pi_override_toggle_layout.addWidget(self.fan_pi_override_checkbox, stretch=9)
+        pi_override_toggle_layout.addStretch(1)
+
+        # Add RPi fan override PWM slider
+        self.fan_pi_override_slider_label = QLabel("Pi PWM:")
+        self.fan_pi_override_slider_label.setStyleSheet(self.slider_label_style)
+        self.fan_pi_override_slider_label.setFixedWidth(90)
+        self.fan_pi_override_slider = QSlider(Qt.Horizontal)
+        self.fan_pi_override_slider.setStyleSheet("""
+            QSlider {
+                border: 2px solid #444444;
+                border-radius: 5px;
+                background-color: #333333;
+                padding: 2px;
+            }
+            QSlider::groove:horizontal { 
+                background: #555555;
+                height: 20px;
+                border-radius: 5px;
+            }
+            QSlider::handle:horizontal {
+                background: #F7DC6F;
+                width: 40px;
+                height: 20px;
+                margin-top: -8px;
+                margin-bottom: -8px;
+            }
+        """)
+        self.fan_pi_override_slider.setRange(0, 255)
+        self.fan_pi_override_slider.setValue(0)
+        self.fan_pi_override_slider.setEnabled(False)
+        self.fan_pi_override_value_label = QLabel("0")
+        self.fan_pi_override_value_label.setStyleSheet(self.slider_label_style)
+        self.fan_pi_override_value_label.setFixedWidth(60)
+        pi_override_slider_layout = QHBoxLayout()
+        pi_override_slider_layout.addWidget(self.fan_pi_override_slider_label, stretch=1)
+        pi_override_slider_layout.addWidget(self.fan_pi_override_slider, stretch=9)
+        pi_override_slider_layout.addWidget(self.fan_pi_override_value_label, stretch=1)
+        pi_override_slider_layout.setSpacing(10)
+
         pi_following_layout.addLayout(self.fan_pi_pwm_min_slider_layout)
         pi_following_layout.addLayout(self.fan_pi_pwm_max_slider_layout)
+        pi_following_layout.addLayout(pi_override_toggle_layout)
+        pi_following_layout.addLayout(pi_override_slider_layout)
         self.fan_pi_following_widget.setLayout(pi_following_layout)
         
     def resizeEvent(self, event):
@@ -740,6 +802,11 @@ class FanTab(QWidget):
         self.fan_pi_pwm_max_value_lable.setMaximumHeight(self.fan_ui_height)
         self.fan_pi_pwm_min_slider.setMaximumHeight(self.fan_ui_height)
         self.fan_pi_pwm_max_slider.setMaximumHeight(self.fan_ui_height)
+        self.fan_pi_override_label.setMaximumHeight(self.fan_ui_height)
+        self.fan_pi_override_checkbox.setMaximumHeight(self.fan_ui_height)
+        self.fan_pi_override_slider_label.setMaximumHeight(self.fan_ui_height)
+        self.fan_pi_override_slider.setMaximumHeight(self.fan_ui_height)
+        self.fan_pi_override_value_label.setMaximumHeight(self.fan_ui_height)
         
     def resetUiSize(self, width, height):
         """Reset UI dimensions"""
@@ -858,6 +925,13 @@ class FanTab(QWidget):
         self.fan_pi_pwm_max_slider.setValue(speed[1])
         self.fan_pi_pwm_min_value_lable.setText(str(speed[0]))
         self.fan_pi_pwm_max_value_lable.setText(str(speed[1]))
+
+    def set_pi_override_state(self, enabled, duty):
+        """Set Pi fan override slider state and value"""
+        self.fan_pi_override_checkbox.setChecked(enabled)
+        self.fan_pi_override_slider.setEnabled(enabled)
+        self.fan_pi_override_slider.setValue(duty)
+        self.fan_pi_override_value_label.setText(str(duty))
     
     def set_manual_weight_slider_value(self, speed):
         """Set PWM values in Manual mode"""

@@ -11,7 +11,34 @@ import socket
 class SystemInformation:
 
     def __init__(self):
-        pass
+        self._rpi_fan_pwm_path = None
+        self._rpi_fan_pwm_enable_path = None
+
+    def _resolve_raspberry_pi_fan_paths(self):
+        if self._rpi_fan_pwm_path and os.path.exists(self._rpi_fan_pwm_path):
+            return self._rpi_fan_pwm_path, self._rpi_fan_pwm_enable_path
+
+        base_paths = [
+            "/sys/devices/platform/cooling_fan/hwmon",
+            "/sys/class/hwmon",
+        ]
+        for base_path in base_paths:
+            if not os.path.isdir(base_path):
+                continue
+            for entry in os.listdir(base_path):
+                if not entry.startswith("hwmon"):
+                    continue
+                pwm_path = os.path.join(base_path, entry, "pwm1")
+                if not os.path.exists(pwm_path):
+                    continue
+                enable_path = os.path.join(base_path, entry, "pwm1_enable")
+                self._rpi_fan_pwm_path = pwm_path
+                self._rpi_fan_pwm_enable_path = enable_path if os.path.exists(enable_path) else None
+                return self._rpi_fan_pwm_path, self._rpi_fan_pwm_enable_path
+
+        self._rpi_fan_pwm_path = None
+        self._rpi_fan_pwm_enable_path = None
+        return None, None
 
     def get_raspberry_pi_ip_address(self):
         """Get the IP address of the Raspberry Pi"""
@@ -101,12 +128,9 @@ class SystemInformation:
         """Get fan PWM using cached path and direct file read instead of subprocess"""
         for attempt in range(max_retries + 1):
             try:
-                base_path = '/sys/devices/platform/cooling_fan/hwmon/'
-                hwmon_dirs = [d for d in os.listdir(base_path) if d.startswith('hwmon')]
-                if not hwmon_dirs:
-                    raise FileNotFoundError("No hwmon directory found")
-                fan_input_path = os.path.join(base_path, hwmon_dirs[0], 'pwm1')
-                
+                fan_input_path, _ = self._resolve_raspberry_pi_fan_paths()
+                if not fan_input_path:
+                    raise FileNotFoundError("No fan PWM path found")
                 # Direct file read instead of subprocess
                 with open(fan_input_path, 'r') as f:
                     pwm_value = int(f.read().strip())
@@ -120,6 +144,43 @@ class SystemInformation:
             except Exception:
                 return -1
         return -1
+
+    def get_raspberry_pi_fan_mode(self):
+        """Get the current fan control mode from pwm1_enable when available."""
+        _, enable_path = self._resolve_raspberry_pi_fan_paths()
+        if not enable_path:
+            return None
+        try:
+            with open(enable_path, 'r') as f:
+                return int(f.read().strip())
+        except Exception:
+            return None
+
+    def set_raspberry_pi_fan_mode(self, mode):
+        """Set the fan control mode using pwm1_enable if available."""
+        _, enable_path = self._resolve_raspberry_pi_fan_paths()
+        if not enable_path:
+            return False
+        try:
+            with open(enable_path, 'w') as f:
+                f.write(str(int(mode)))
+            return True
+        except Exception:
+            return False
+
+    def set_raspberry_pi_fan_duty(self, pwm_value):
+        """Set fan PWM duty and switch to manual mode when possible."""
+        fan_input_path, _ = self._resolve_raspberry_pi_fan_paths()
+        if not fan_input_path:
+            return False
+        try:
+            self.set_raspberry_pi_fan_mode(1)
+            pwm_value = max(0, min(255, int(pwm_value)))
+            with open(fan_input_path, 'w') as f:
+                f.write(str(pwm_value))
+            return True
+        except Exception:
+            return False
 
     def get_raspberry_pi_cpu_temperature(self):
         """Get the CPU temperature in Celsius using direct file read"""
