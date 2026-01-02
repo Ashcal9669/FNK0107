@@ -24,7 +24,7 @@ class MainWindow(QMainWindow):
         self.ui_factor = 1.0
         self.ui_main_width = width
         self.ui_main_height = height
-        self.ui_fan_temp_mode_threshold_range = [[10, 40], [50, 80], [1, 5]]     # Fan temperature mode threshold range
+        self.ui_fan_temp_mode_threshold_range = [[10, 60], [20, 80], [1, 5]]     # Fan temperature mode threshold range
         self.setWindowTitle("Freenove_Computer_Case_Kit_Pro_for_Raspberry_Pi")   # Set window title
         self.setGeometry(0, 0, self.ui_main_width, self.ui_main_height)          # Set window size
         self.setMinimumSize(round(self.ui_main_width*self.ui_factor), round(self.ui_main_height*self.ui_factor))  # Set minimum size
@@ -651,24 +651,34 @@ class MainWindow(QMainWindow):
     def fan_case_weight_low_temp_minus_btn_event(self):
         current_value = int(self.fan_tab.fan_case_low_temp_input.text())
         self.fan_temp_mode_threshold[0] = max(self.ui_fan_temp_mode_threshold_range[0][0], current_value - 1) # Minimum value is 10
+        if self.fan_temp_mode_threshold[1] <= self.fan_temp_mode_threshold[0]:
+            self.fan_temp_mode_threshold[1] = min(self.ui_fan_temp_mode_threshold_range[1][1], self.fan_temp_mode_threshold[0] + 1)
+            self.fan_tab.fan_case_high_temp_input.setText(str(self.fan_temp_mode_threshold[1]))
         self.fan_tab.fan_case_low_temp_input.setText(str(self.fan_temp_mode_threshold[0]))
         low_temp, high_temp, schmitt = self.fan_temp_mode_threshold
         self.expansion.set_fan_threshold(low_temp, high_temp, schmitt)
     def fan_case_weight_low_temp_plus_btn_event(self):
         current_value = int(self.fan_tab.fan_case_low_temp_input.text())
         self.fan_temp_mode_threshold[0] = min(self.ui_fan_temp_mode_threshold_range[0][1], current_value + 1)  # Maximum value is 40
+        if self.fan_temp_mode_threshold[1] <= self.fan_temp_mode_threshold[0]:
+            self.fan_temp_mode_threshold[1] = min(self.ui_fan_temp_mode_threshold_range[1][1], self.fan_temp_mode_threshold[0] + 1)
+            self.fan_tab.fan_case_high_temp_input.setText(str(self.fan_temp_mode_threshold[1]))
         self.fan_tab.fan_case_low_temp_input.setText(str(self.fan_temp_mode_threshold[0]))
         low_temp, high_temp, schmitt = self.fan_temp_mode_threshold
         self.expansion.set_fan_threshold(low_temp, high_temp, schmitt)
     def fan_case_weight_high_temp_minus_btn_event(self):
         current_value = int(self.fan_tab.fan_case_high_temp_input.text())
         self.fan_temp_mode_threshold[1] = max(self.ui_fan_temp_mode_threshold_range[1][0], current_value - 1)  # Minimum value is 50
+        if self.fan_temp_mode_threshold[1] <= self.fan_temp_mode_threshold[0]:
+            self.fan_temp_mode_threshold[1] = min(self.ui_fan_temp_mode_threshold_range[1][1], self.fan_temp_mode_threshold[0] + 1)
         self.fan_tab.fan_case_high_temp_input.setText(str(self.fan_temp_mode_threshold[1]))
         low_temp, high_temp, schmitt = self.fan_temp_mode_threshold
         self.expansion.set_fan_threshold(low_temp, high_temp, schmitt)
     def fan_case_weight_high_temp_plus_btn_event(self):
         current_value = int(self.fan_tab.fan_case_high_temp_input.text())
         self.fan_temp_mode_threshold[1] = min(self.ui_fan_temp_mode_threshold_range[1][1], current_value + 1)  # Maximum value is 80
+        if self.fan_temp_mode_threshold[1] <= self.fan_temp_mode_threshold[0]:
+            self.fan_temp_mode_threshold[1] = min(self.ui_fan_temp_mode_threshold_range[1][1], self.fan_temp_mode_threshold[0] + 1)
         self.fan_tab.fan_case_high_temp_input.setText(str(self.fan_temp_mode_threshold[1]))
         low_temp, high_temp, schmitt = self.fan_temp_mode_threshold
         self.expansion.set_fan_threshold(low_temp, high_temp, schmitt)

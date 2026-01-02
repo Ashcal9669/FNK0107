@@ -41,8 +41,8 @@ PROCESS_SCRIPTS = {
 }
 
 FAN_TEMP_LIMITS = {
-    "low": (10, 40),
-    "high": (50, 80),
+    "low": (10, 60),
+    "high": (20, 80),
     "schmitt": (1, 5),
 }
 
@@ -408,6 +408,8 @@ def api_fan():
                 threshold_defaults[2],
             ),
         ]
+        if thresh[1] <= thresh[0]:
+            thresh[1] = min(FAN_TEMP_LIMITS["high"][1], thresh[0] + 1)
         speed = [
             clamp_int(speeds[0] if len(speeds) > 0 else None, 0, 255, speed_defaults[0]),
             clamp_int(speeds[1] if len(speeds) > 1 else None, 0, 255, speed_defaults[1]),
