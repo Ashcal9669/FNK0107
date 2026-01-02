@@ -347,6 +347,23 @@ input[type="range"] {
   font-size: 13px;
 }
 
+.debug-list {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8f8f8;
+  border-radius: 12px;
+  padding: 8px 12px;
+  color: #1f2933;
+}
+
 .task-grid {
   display: grid;
   gap: 12px;

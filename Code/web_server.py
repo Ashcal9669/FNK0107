@@ -252,6 +252,11 @@ def api_status():
     expansion_info = {
         "case_temp_c": None,
         "fan_duty": [],
+        "fan_frequency": None,
+        "fan_threshold": None,
+        "fan_temp_speed": None,
+        "fan_power_switch": None,
+        "fan_pi_follow": None,
         "led_mode": None,
         "fan_mode": None,
         "error": None,
@@ -269,6 +274,26 @@ def api_status():
             expansion_info["fan_duty"] = exp.get_fan_duty()
         except Exception:
             expansion_info["fan_duty"] = []
+        try:
+            expansion_info["fan_frequency"] = exp.get_fan_frequency()
+        except Exception:
+            expansion_info["fan_frequency"] = None
+        try:
+            expansion_info["fan_threshold"] = exp.get_fan_threshold()
+        except Exception:
+            expansion_info["fan_threshold"] = None
+        try:
+            expansion_info["fan_temp_speed"] = exp.get_fan_temp_mode_speed()
+        except Exception:
+            expansion_info["fan_temp_speed"] = None
+        try:
+            expansion_info["fan_power_switch"] = exp.get_fan_power_switch()
+        except Exception:
+            expansion_info["fan_power_switch"] = None
+        try:
+            expansion_info["fan_pi_follow"] = exp.get_fan_pi_following()
+        except Exception:
+            expansion_info["fan_pi_follow"] = None
         try:
             expansion_info["led_mode"] = exp.get_led_mode()
         except Exception:

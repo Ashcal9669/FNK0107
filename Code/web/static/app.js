@@ -336,6 +336,27 @@ function updateStatus(data) {
     expansionChip.title = "";
   }
 
+  const fanDutyText = Array.isArray(expansion.fan_duty)
+    ? expansion.fan_duty.join(", ")
+    : "--";
+  const fanThresholdText = Array.isArray(expansion.fan_threshold)
+    ? expansion.fan_threshold.join(", ")
+    : "--";
+  const fanTempSpeedText = Array.isArray(expansion.fan_temp_speed)
+    ? expansion.fan_temp_speed.join(", ")
+    : "--";
+  const fanPiFollowText = Array.isArray(expansion.fan_pi_follow)
+    ? expansion.fan_pi_follow.join(", ")
+    : "--";
+
+  setText("dbg-fan-mode", expansion.fan_mode ?? "--");
+  setText("dbg-fan-power", expansion.fan_power_switch ?? "--");
+  setText("dbg-fan-frequency", expansion.fan_frequency ?? "--");
+  setText("dbg-fan-duty", fanDutyText);
+  setText("dbg-fan-threshold", fanThresholdText);
+  setText("dbg-fan-temp-speed", fanTempSpeedText);
+  setText("dbg-fan-pi-follow", fanPiFollowText);
+
   $("led-custom-toggle").textContent = latestProcesses.led ? "Stop" : "Start";
   $("fan-custom-toggle").textContent = latestProcesses.fan ? "Stop" : "Start";
   $("oled-toggle").textContent = latestProcesses.oled ? "Stop" : "Start";
