@@ -160,6 +160,7 @@ def apply_led_mode(mode, color, brightness):
 def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm):
     if mode == 0:
         return "follow_case", [
+            ("set_fan_power_switch", 1),
             ("set_fan_mode", 2),
             ("set_fan_threshold", *thresholds),
             ("set_fan_temp_mode_speed", *speeds),
@@ -168,11 +169,13 @@ def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm):
         mapped = map_pi_pwm_to_duty(pi_pwm, pi_follow[0], pi_follow[1])
         duty_value = mapped if mapped is not None else manual_duty[0]
         return "follow_pi", [
+            ("set_fan_power_switch", 1),
             ("set_fan_mode", 1),
             ("set_fan_duty", duty_value, duty_value, duty_value),
         ]
     if mode == 2:
         return "manual", [
+            ("set_fan_power_switch", 1),
             ("set_fan_mode", 1),
             ("set_fan_duty", *manual_duty),
         ]
@@ -180,6 +183,7 @@ def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm):
         return "off", [
             ("set_fan_mode", 0),
             ("set_fan_duty", 0, 0, 0),
+            ("set_fan_power_switch", 0),
         ]
     return "custom", []
 
@@ -209,6 +213,7 @@ def fan_follow_loop():
                     exp, exp_err = try_expansion()
                     if not exp_err:
                         with expansion_lock:
+                            exp.set_fan_power_switch(1)
                             exp.set_fan_mode(1)
                             exp.set_fan_duty(duty, duty, duty)
                         last_duty = duty
