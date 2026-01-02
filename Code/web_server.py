@@ -157,14 +157,44 @@ def apply_led_mode(mode, color, brightness):
     return "custom", []
 
 
-def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm):
+def select_case_duty(temp_c, thresholds, speeds, last_band):
+    if temp_c is None:
+        return speeds[1], last_band
+    low_t, high_t, schmitt = thresholds
+    low_speed, mid_speed, high_speed = speeds
+    band = last_band
+    if band is None:
+        if temp_c >= high_t:
+            band = "high"
+        elif temp_c <= low_t:
+            band = "low"
+        else:
+            band = "mid"
+    if band == "high":
+        if temp_c <= high_t - schmitt:
+            band = "mid"
+    elif band == "low":
+        if temp_c >= low_t + schmitt:
+            band = "mid"
+    else:
+        if temp_c >= high_t:
+            band = "high"
+        elif temp_c <= low_t:
+            band = "low"
+    duty = high_speed if band == "high" else low_speed if band == "low" else mid_speed
+    return duty, band
+
+
+def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm, case_temp):
     if mode == 0:
+        duty_value, _ = select_case_duty(case_temp, thresholds, speeds, None)
         return "follow_case", [
             ("set_fan_power_switch", 1),
             ("set_fan_frequency", 50000),
-            ("set_fan_mode", 2),
+            ("set_fan_mode", 1),
             ("set_fan_threshold", *thresholds),
             ("set_fan_temp_mode_speed", *speeds),
+            ("set_fan_duty", duty_value, duty_value, duty_value),
         ]
     if mode == 1:
         mapped = map_pi_pwm_to_duty(pi_pwm, pi_follow[0], pi_follow[1])
@@ -200,31 +230,64 @@ def set_save_flash(exp):
 
 def fan_follow_loop():
     last_duty = None
+    last_case_band = None
     while True:
         try:
             with config_lock:
                 config_manager.load_config()
                 mode = get_config_value("Fan", "mode", 0)
+                thresholds = [
+                    get_config_value("Fan", "mode2_low_temp_threshold", 30),
+                    get_config_value("Fan", "mode2_high_temp_threshold", 50),
+                    get_config_value("Fan", "mode2_temp_schmitt", 3),
+                ]
+                speeds = [
+                    get_config_value("Fan", "mode2_low_speed", 75),
+                    get_config_value("Fan", "mode2_middle_speed", 125),
+                    get_config_value("Fan", "mode2_high_speed", 175),
+                ]
                 follow = [
                     get_config_value("Fan", "mode3_min_speed_mapping", 0),
                     get_config_value("Fan", "mode3_max_speed_mapping", 255),
                 ]
-            if mode == 1 and not process_is_running("fan"):
-                pi_pwm = system_info.get_raspberry_pi_fan_duty()
-                duty = map_pi_pwm_to_duty(pi_pwm, follow[0], follow[1])
-                if duty is not None and duty != last_duty:
-                    exp, exp_err = try_expansion()
-                    if not exp_err:
+            if not process_is_running("fan"):
+                exp, exp_err = try_expansion()
+                if exp_err:
+                    last_duty = None
+                    last_case_band = None
+                elif mode == 1:
+                    pi_pwm = system_info.get_raspberry_pi_fan_duty()
+                    duty = map_pi_pwm_to_duty(pi_pwm, follow[0], follow[1])
+                    if duty is not None and duty != last_duty:
                         with expansion_lock:
                             exp.set_fan_power_switch(1)
                             exp.set_fan_frequency(50000)
                             exp.set_fan_mode(1)
                             exp.set_fan_duty(duty, duty, duty)
                         last_duty = duty
+                        last_case_band = None
+                elif mode == 0:
+                    try:
+                        case_temp = exp.get_temp()
+                    except Exception:
+                        case_temp = None
+                    duty, last_case_band = select_case_duty(case_temp, thresholds, speeds, last_case_band)
+                    if duty is not None and duty != last_duty:
+                        with expansion_lock:
+                            exp.set_fan_power_switch(1)
+                            exp.set_fan_frequency(50000)
+                            exp.set_fan_mode(1)
+                            exp.set_fan_duty(duty, duty, duty)
+                        last_duty = duty
+                else:
+                    last_duty = None
+                    last_case_band = None
             else:
                 last_duty = None
+                last_case_band = None
         except Exception:
             last_duty = None
+            last_case_band = None
         time.sleep(1.0)
 
 
@@ -471,7 +534,11 @@ def api_fan():
         if exp_err:
             return jsonify({"ok": False, "error": exp_err}), 500
         pi_pwm = system_info.get_raspberry_pi_fan_duty()
-        _, calls = apply_fan_mode(mode, duty, thresh, speed, follow, pi_pwm)
+        try:
+            case_temp = exp.get_temp()
+        except Exception:
+            case_temp = None
+        _, calls = apply_fan_mode(mode, duty, thresh, speed, follow, pi_pwm, case_temp)
         with expansion_lock:
             for call in calls:
                 method = getattr(exp, call[0])
