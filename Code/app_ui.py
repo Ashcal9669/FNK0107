@@ -603,6 +603,7 @@ class MainWindow(QMainWindow):
         """Send fan mode to expansion board"""
         if mode == 0:
             self.expansion.set_fan_power_switch(1)
+            self.expansion.set_fan_frequency(50000)
             self.expansion.set_fan_mode(2)  
             self.expansion.set_fan_threshold(
                 self.fan_temp_mode_threshold[0],
@@ -616,6 +617,7 @@ class MainWindow(QMainWindow):
             )
         elif mode == 1:
             self.expansion.set_fan_power_switch(1)
+            self.expansion.set_fan_frequency(50000)
             self.expansion.set_fan_mode(1)
             mapped_duty = self._map_pi_pwm_to_case_duty(
                 self.system_info.get_raspberry_pi_fan_duty()
@@ -624,6 +626,7 @@ class MainWindow(QMainWindow):
                 self.expansion.set_fan_duty(mapped_duty, mapped_duty, mapped_duty)
         elif mode == 2:
             self.expansion.set_fan_power_switch(1)
+            self.expansion.set_fan_frequency(50000)
             self.expansion.set_fan_mode(1)
             self.expansion.set_fan_duty(
                 self.fan_manual_mode_duty[0],
