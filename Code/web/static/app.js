@@ -315,6 +315,25 @@ function updateStatus(data) {
   setText("rpi-pwm", `${rpiPercent.toFixed(1)}%`);
   setMeter("rpi-pwm-bar", rpiPercent);
 
+  const hdd = system.hdd || {};
+  const hddTemps = hdd.temps || {};
+  const hddMax = hdd.max_temp != null ? Number(hdd.max_temp) : null;
+  const hddList = Object.keys(hddTemps).length
+    ? Object.entries(hddTemps)
+        .map(([drive, temp]) => `${drive}: ${temp}C`)
+        .join(" | ")
+    : "--";
+  setText("hdd-temp-max", hddMax == null ? "--" : `${hddMax.toFixed(1)}C`);
+  setText("hdd-temp-list", hddList);
+  setMeter("hdd-temp-bar", hddMax == null ? 0 : clamp((hddMax / 60) * 100, 0, 100));
+
+  const hddConfig = hdd.config || {};
+  setText("hdd-service-status", hdd.service ? hdd.service.active || "--" : "--");
+  setText("hdd-drives", hdd.drives ? hdd.drives.join(", ") : "--");
+  setText("hdd-max-temp", hddMax == null ? "--" : `${hddMax.toFixed(1)}C`);
+  setText("hdd-poll", hddConfig.FREENOVE_HDD_POLL_SECONDS || "--");
+  setText("hdd-period", hddConfig.FREENOVE_HDD_PWM_PERIOD || "--");
+
   const fanDuty = Array.isArray(expansion.fan_duty) ? expansion.fan_duty : [];
   const pwm1 = fanDuty.length > 0 ? clamp((fanDuty[0] / 255) * 100, 0, 100) : 0;
   const pwm2 = fanDuty.length > 1 ? clamp((fanDuty[1] / 255) * 100, 0, 100) : 0;

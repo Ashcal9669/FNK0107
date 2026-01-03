@@ -46,6 +46,79 @@ FAN_TEMP_LIMITS = {
     "schmitt": (1, 5),
 }
 
+HDD_STATUS_TTL = 5
+_hdd_status_cache = {"timestamp": 0, "data": {}}
+
+
+def parse_drive_list(raw):
+    return [d.strip() for d in (raw or "").split(",") if d.strip()]
+
+
+def read_env_file(path):
+    data = {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                data[key.strip()] = value.strip()
+    except Exception:
+        return {}
+    return data
+
+
+def get_hdd_controller_status():
+    now = time.time()
+    if now - _hdd_status_cache["timestamp"] < HDD_STATUS_TTL:
+        return _hdd_status_cache["data"]
+    status = {"active": None}
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "freenove-hdd-fan"],
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=1.5,
+        )
+        status["active"] = result.stdout.strip() or None
+    except Exception:
+        status["active"] = None
+    _hdd_status_cache["timestamp"] = now
+    _hdd_status_cache["data"] = status
+    return status
+
+
+def get_hdd_temps():
+    env = read_env_file("/etc/freenove-hdd-fan.conf")
+    drives = parse_drive_list(env.get("FREENOVE_HDD_DRIVES", "/dev/sda,/dev/sdb"))
+    temps = {}
+    for drive in drives:
+        try:
+            output = subprocess.check_output(
+                ["smartctl", "-A", "-n", "standby", drive],
+                text=True,
+                timeout=2,
+            )
+            temp_value = None
+            for line in output.splitlines():
+                if "Temperature_Celsius" in line or "Airflow_Temperature_Cel" in line:
+                    temp_value = int(line.split()[9])
+                    break
+            if temp_value is not None:
+                temps[drive] = temp_value
+        except Exception:
+            continue
+    return {
+        "drives": drives,
+        "temps": temps,
+        "max_temp": max(temps.values()) if temps else None,
+        "config": env,
+        "service": get_hdd_controller_status(),
+    }
+
 
 def clamp_int(value, min_value, max_value, default):
     try:
@@ -309,6 +382,7 @@ def api_status():
         "cpu_temp_c": system_info.get_raspberry_pi_cpu_temperature(),
         "rpi_fan_pwm": system_info.get_raspberry_pi_fan_duty(),
         "rpi_fan_mode": system_info.get_raspberry_pi_fan_mode(),
+        "hdd": get_hdd_temps(),
         "timestamp": time.time(),
     }
 

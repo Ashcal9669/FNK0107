@@ -103,6 +103,14 @@
             </div>
             <div class="meter"><span id="case-pwm-2-bar"></span></div>
           </div>
+          <div class="metric metric-wide">
+            <div class="metric-top">
+              <span class="metric-label">HDD Temps</span>
+              <span class="metric-value" id="hdd-temp-max">--</span>
+            </div>
+            <div class="metric-sub" id="hdd-temp-list">--</div>
+            <div class="meter"><span id="hdd-temp-bar"></span></div>
+          </div>
         </div>
       </section>
 
@@ -277,6 +285,22 @@
           <div class="debug-row"><span>Threshold</span><span id="dbg-fan-threshold">--</span></div>
           <div class="debug-row"><span>Temp Speeds</span><span id="dbg-fan-temp-speed">--</span></div>
           <div class="debug-row"><span>Pi Follow Map</span><span id="dbg-fan-pi-follow">--</span></div>
+        </div>
+      </section>
+
+      <section class="card" style="--delay: 0.19s">
+        <div class="card-header">
+          <div>
+            <h2>HDD Controller</h2>
+            <p>External drive temps and PWM controller status.</p>
+          </div>
+        </div>
+        <div class="debug-list">
+          <div class="debug-row"><span>Service</span><span id="hdd-service-status">--</span></div>
+          <div class="debug-row"><span>Drives</span><span id="hdd-drives">--</span></div>
+          <div class="debug-row"><span>Max Temp</span><span id="hdd-max-temp">--</span></div>
+          <div class="debug-row"><span>Poll (sec)</span><span id="hdd-poll">--</span></div>
+          <div class="debug-row"><span>PWM Period</span><span id="hdd-period">--</span></div>
         </div>
       </section>
 

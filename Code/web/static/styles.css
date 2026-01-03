@@ -189,6 +189,16 @@ body::before {
   gap: 12px;
 }
 
+.metric-wide {
+  grid-column: 1 / -1;
+}
+
+.metric-sub {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
 .metric {
   background: #f6f6f6;
   border-radius: 14px;
