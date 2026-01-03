@@ -303,6 +303,34 @@
           <div class="debug-row"><span>Poll (sec)</span><span id="hdd-poll">--</span></div>
           <div class="debug-row"><span>PWM Period</span><span id="hdd-period">--</span></div>
         </div>
+        <div class="controller-actions">
+          <button class="secondary" type="button" id="hdd-toggle">Start</button>
+          <button class="ghost" type="button" id="hdd-save">Save</button>
+        </div>
+        <div class="controller-form">
+          <label class="field">
+            <span>Drives</span>
+            <input type="text" id="hdd-drive-input" placeholder="auto or /dev/sda,/dev/sdb" />
+          </label>
+          <label class="field">
+            <span>Exclude</span>
+            <input type="text" id="hdd-exclude-input" placeholder="/dev/sdb" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Poll</span>
+              <input type="number" id="hdd-poll-input" min="5" max="600" />
+            </label>
+            <label class="field">
+              <span>PWM Period</span>
+              <input type="number" id="hdd-period-input" min="1000" max="1000000" />
+            </label>
+            <label class="field">
+              <span>Default Temp</span>
+              <input type="number" id="hdd-default-temp-input" min="0" max="100" />
+            </label>
+          </div>
+        </div>
       </section>
 
       <section class="card" style="--delay: 0.2s">

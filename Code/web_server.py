@@ -102,6 +102,46 @@ def read_env_dir(path):
     return data
 
 
+def ensure_hdd_conf_dir():
+    os.makedirs("/etc/freenove-hdd-fan.conf.d", exist_ok=True)
+    return "/etc/freenove-hdd-fan.conf.d/override.conf"
+
+
+def normalize_hdd_value(value):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+    return value if value != "" else None
+
+
+def write_hdd_override_config(payload):
+    override_path = ensure_hdd_conf_dir()
+    allowed = {
+        "FREENOVE_HDD_DRIVES",
+        "FREENOVE_HDD_EXCLUDE",
+        "FREENOVE_HDD_POLL_SECONDS",
+        "FREENOVE_HDD_PWM_PERIOD",
+        "FREENOVE_HDD_DEFAULT_TEMP",
+    }
+    lines = []
+    for key in allowed:
+        value = normalize_hdd_value(payload.get(key))
+        if value is None:
+            continue
+        lines.append(f"{key}={value}")
+    with open(override_path, "w", encoding="utf-8") as handle:
+        handle.write("\n".join(lines) + ("\n" if lines else ""))
+    return override_path
+
+
+def read_hdd_config():
+    config = {}
+    config.update(read_env_file("/etc/freenove-hdd-fan.conf"))
+    config.update(read_env_dir("/etc/freenove-hdd-fan.conf.d"))
+    return config
+
+
 def get_hdd_controller_status():
     now = time.time()
     if now - _hdd_status_cache["timestamp"] < HDD_STATUS_TTL:
@@ -687,6 +727,55 @@ def api_rpi_fan():
         system_info.set_raspberry_pi_fan_mode(2)
 
     return jsonify({"ok": True})
+
+
+@app.get("/api/hdd-config")
+def api_hdd_config():
+    config = read_hdd_config()
+    return jsonify(
+        {
+            "config": config,
+            "service": get_hdd_controller_status(),
+        }
+    )
+
+
+@app.post("/api/hdd-config")
+def api_hdd_config_update():
+    payload = request.get_json(silent=True) or {}
+    try:
+        write_hdd_override_config(payload)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": format_error(exc)}), 500
+    try:
+        subprocess.run(
+            ["systemctl", "restart", "freenove-hdd-fan"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
+    return jsonify({"ok": True})
+
+
+@app.post("/api/hdd-service")
+def api_hdd_service():
+    payload = request.get_json(silent=True) or {}
+    enable = payload.get("enable")
+    if enable is None:
+        return jsonify({"ok": False, "error": "Missing enable flag"}), 400
+    action = "start" if bool(enable) else "stop"
+    try:
+        subprocess.run(
+            ["systemctl", action, "freenove-hdd-fan"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "error": format_error(exc)}), 500
+    return jsonify({"ok": True, "status": get_hdd_controller_status()})
 
 
 @app.post("/api/tasks")

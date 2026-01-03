@@ -391,6 +391,19 @@ input[type="range"] {
   color: #1f2933;
 }
 
+.controller-actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.controller-form {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
 .task-grid {
   display: grid;
   gap: 12px;
