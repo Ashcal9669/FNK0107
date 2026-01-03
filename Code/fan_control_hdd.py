@@ -2,14 +2,84 @@ import os
 import time
 import subprocess
 
-PWM_BASE = os.environ.get("FREENOVE_HDD_PWM_BASE", "/sys/class/pwm/pwmchip0")
-PWM_CHAN = os.path.join(PWM_BASE, "pwm0")
-PERIOD = int(os.environ.get("FREENOVE_HDD_PWM_PERIOD", "40000"))
-DRIVES_ENV = os.environ.get("FREENOVE_HDD_DRIVES", "/dev/sda,/dev/sdb")
-DRIVES = [d.strip() for d in DRIVES_ENV.split(",") if d.strip()]
+CONFIG_FILE = "/etc/freenove-hdd-fan.conf"
+CONFIG_DIR = "/etc/freenove-hdd-fan.conf.d"
 
-TEMP_DEFAULT = int(os.environ.get("FREENOVE_HDD_DEFAULT_TEMP", "25"))
-POLL_INTERVAL = int(os.environ.get("FREENOVE_HDD_POLL_SECONDS", "30"))
+
+def parse_drive_list(raw):
+    return [d.strip() for d in (raw or "").split(",") if d.strip()]
+
+
+def read_env_file(path):
+    data = {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                data[key.strip()] = value.strip()
+    except Exception:
+        return {}
+    return data
+
+
+def read_env_dir(path):
+    data = {}
+    try:
+        entries = sorted(
+            entry for entry in os.listdir(path) if entry.endswith(".conf")
+        )
+    except Exception:
+        return {}
+    for entry in entries:
+        data.update(read_env_file(os.path.join(path, entry)))
+    return data
+
+
+def load_config():
+    config = {}
+    config.update(read_env_file(CONFIG_FILE))
+    config.update(read_env_dir(CONFIG_DIR))
+    for key, value in os.environ.items():
+        if key.startswith("FREENOVE_HDD_"):
+            config[key] = value
+    return config
+
+
+def detect_hdd_drives():
+    try:
+        output = subprocess.check_output(
+            ["smartctl", "--scan-open"], text=True
+        )
+    except Exception:
+        output = ""
+    drives = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        device = line.split()[0]
+        if device.startswith("/dev/sd"):
+            drives.append(device)
+    return sorted(set(drives))
+
+
+CONFIG = load_config()
+PWM_BASE = CONFIG.get("FREENOVE_HDD_PWM_BASE", "/sys/class/pwm/pwmchip0")
+PWM_CHAN = os.path.join(PWM_BASE, "pwm0")
+PERIOD = int(CONFIG.get("FREENOVE_HDD_PWM_PERIOD", "40000"))
+TEMP_DEFAULT = int(CONFIG.get("FREENOVE_HDD_DEFAULT_TEMP", "25"))
+POLL_INTERVAL = int(CONFIG.get("FREENOVE_HDD_POLL_SECONDS", "30"))
+
+DRIVES_RAW = CONFIG.get("FREENOVE_HDD_DRIVES", "auto")
+DRIVES = parse_drive_list(DRIVES_RAW)
+if not DRIVES or DRIVES_RAW.lower() == "auto":
+    DRIVES = detect_hdd_drives()
+EXCLUDE = parse_drive_list(CONFIG.get("FREENOVE_HDD_EXCLUDE", ""))
+if EXCLUDE:
+    DRIVES = [drive for drive in DRIVES if drive not in EXCLUDE]
 
 
 def get_max_hdd_temp():

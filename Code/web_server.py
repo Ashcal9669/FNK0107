@@ -89,6 +89,19 @@ def read_env_file(path):
     return data
 
 
+def read_env_dir(path):
+    data = {}
+    try:
+        entries = sorted(
+            entry for entry in os.listdir(path) if entry.endswith(".conf")
+        )
+    except Exception:
+        return {}
+    for entry in entries:
+        data.update(read_env_file(os.path.join(path, entry)))
+    return data
+
+
 def get_hdd_controller_status():
     now = time.time()
     if now - _hdd_status_cache["timestamp"] < HDD_STATUS_TTL:
@@ -112,7 +125,9 @@ def get_hdd_controller_status():
 
 
 def get_hdd_temps():
-    env = read_env_file("/etc/freenove-hdd-fan.conf")
+    env = {}
+    env.update(read_env_file("/etc/freenove-hdd-fan.conf"))
+    env.update(read_env_dir("/etc/freenove-hdd-fan.conf.d"))
     drives_raw = env.get("FREENOVE_HDD_DRIVES", "auto")
     drives = parse_drive_list(drives_raw)
     if not drives or drives_raw.lower() == "auto":

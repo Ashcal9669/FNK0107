@@ -78,7 +78,7 @@ sudo systemctl status freenove-hdd-fan --no-pager
 Notes:
 - The script uses `smartctl` to read HDD temps and maps them to a fan curve.
 - Defaults monitor `auto` (scan `/dev/sd*`) every 30 seconds with the built-in curve.
-- Other users can edit `/etc/freenove-hdd-fan.conf` to change drive list, exclude drives, polling interval, and PWM period.
+- Other users can edit `/etc/freenove-hdd-fan.conf` or add overrides in `/etc/freenove-hdd-fan.conf.d/override.conf` to change drive list, exclude drives, polling interval, and PWM period.
 - The PWM overlay is added to `/boot/firmware/config.txt`:
   - `dtoverlay=pwm,pin=12,func=4`
 - Reboot after enabling the overlay.
