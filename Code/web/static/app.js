@@ -537,7 +537,7 @@ async function applyHddConfig() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    showToast("HDD settings saved");
+    showToast("HDD settings saved and controller started");
     refreshStatus();
   } catch (err) {
     showToast(err.message || "HDD settings failed", true);

@@ -756,7 +756,7 @@ def api_hdd_config_update():
         )
     except Exception:
         pass
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "status": get_hdd_controller_status()})
 
 
 @app.post("/api/hdd-service")
