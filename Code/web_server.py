@@ -54,6 +54,26 @@ def parse_drive_list(raw):
     return [d.strip() for d in (raw or "").split(",") if d.strip()]
 
 
+def detect_hdd_drives():
+    try:
+        output = subprocess.check_output(
+            ["smartctl", "--scan-open"],
+            text=True,
+            timeout=2,
+        )
+    except Exception:
+        output = ""
+    drives = []
+    for line in output.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        device = line.split()[0]
+        if device.startswith("/dev/sd"):
+            drives.append(device)
+    return sorted(set(drives))
+
+
 def read_env_file(path):
     data = {}
     try:
@@ -93,7 +113,13 @@ def get_hdd_controller_status():
 
 def get_hdd_temps():
     env = read_env_file("/etc/freenove-hdd-fan.conf")
-    drives = parse_drive_list(env.get("FREENOVE_HDD_DRIVES", "/dev/sda,/dev/sdb"))
+    drives_raw = env.get("FREENOVE_HDD_DRIVES", "auto")
+    drives = parse_drive_list(drives_raw)
+    if not drives or drives_raw.lower() == "auto":
+        drives = detect_hdd_drives()
+    exclude = parse_drive_list(env.get("FREENOVE_HDD_EXCLUDE", ""))
+    if exclude:
+        drives = [drive for drive in drives if drive not in exclude]
     temps = {}
     for drive in drives:
         try:

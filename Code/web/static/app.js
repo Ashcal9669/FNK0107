@@ -318,6 +318,29 @@ function updateStatus(data) {
   const hdd = system.hdd || {};
   const hddTemps = hdd.temps || {};
   const hddMax = hdd.max_temp != null ? Number(hdd.max_temp) : null;
+  const hddGrid = $("hdd-drive-grid");
+  if (hddGrid) {
+    hddGrid.innerHTML = "";
+    const drives = Object.keys(hddTemps);
+    if (drives.length === 0) {
+      hddGrid.innerHTML = '<div class="metric metric-drive"><div class="metric-top"><span class="metric-label">HDD</span><span class="metric-value">--</span></div></div>';
+    } else {
+      drives.sort().forEach((drive) => {
+        const temp = Number(hddTemps[drive]);
+        const percent = Number.isFinite(temp) ? clamp((temp / 60) * 100, 0, 100) : 0;
+        const card = document.createElement("div");
+        card.className = "metric metric-drive";
+        card.innerHTML = `
+          <div class="metric-top">
+            <span class="metric-label">${drive}</span>
+            <span class="metric-value">${Number.isFinite(temp) ? temp.toFixed(1) + "C" : "--"}</span>
+          </div>
+          <div class="meter"><span style="width:${percent}%"></span></div>
+        `;
+        hddGrid.appendChild(card);
+      });
+    }
+  }
   const hddList = Object.keys(hddTemps).length
     ? Object.entries(hddTemps)
         .map(([drive, temp]) => `${drive}: ${temp}C`)

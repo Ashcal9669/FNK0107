@@ -1,5 +1,8 @@
-# Comma-separated drive list
-FREENOVE_HDD_DRIVES=/dev/sda,/dev/sdb
+# Drive list (comma-separated) or "auto" to scan /dev/sd* via smartctl
+FREENOVE_HDD_DRIVES=auto
+
+# Optional exclude list (comma-separated)
+FREENOVE_HDD_EXCLUDE=
 
 # PWM chip base and period (nanoseconds)
 FREENOVE_HDD_PWM_BASE=/sys/class/pwm/pwmchip0
