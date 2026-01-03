@@ -48,7 +48,7 @@ def load_config():
     return config
 
 
-def detect_hdd_drives():
+def parse_scan_open():
     try:
         output = subprocess.check_output(
             ["smartctl", "--scan-open"], text=True
@@ -60,10 +60,21 @@ def detect_hdd_drives():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        device = line.split()[0]
-        if device.startswith("/dev/sd"):
-            drives.append(device)
-    return sorted(set(drives))
+        parts = line.split()
+        device = parts[0]
+        if not device.startswith("/dev/sd"):
+            continue
+        drive_type = None
+        if "-d" in parts:
+            idx = parts.index("-d")
+            if idx + 1 < len(parts):
+                drive_type = parts[idx + 1]
+        drives.append((device, drive_type))
+    return drives
+
+
+def detect_hdd_drives():
+    return sorted({drive for drive, _ in parse_scan_open()})
 
 
 CONFIG = load_config()
@@ -75,8 +86,10 @@ POLL_INTERVAL = int(CONFIG.get("FREENOVE_HDD_POLL_SECONDS", "30"))
 
 DRIVES_RAW = CONFIG.get("FREENOVE_HDD_DRIVES", "auto")
 DRIVES = parse_drive_list(DRIVES_RAW)
+SCAN = parse_scan_open()
+SCAN_MAP = {drive: drive_type for drive, drive_type in SCAN}
 if not DRIVES or DRIVES_RAW.lower() == "auto":
-    DRIVES = detect_hdd_drives()
+    DRIVES = [drive for drive, _ in SCAN]
 EXCLUDE = parse_drive_list(CONFIG.get("FREENOVE_HDD_EXCLUDE", ""))
 if EXCLUDE:
     DRIVES = [drive for drive in DRIVES if drive not in EXCLUDE]
@@ -85,9 +98,13 @@ if EXCLUDE:
 def get_max_hdd_temp():
     temps = []
     for drive in DRIVES:
+        drive_type = SCAN_MAP.get(drive)
         try:
+            cmd = ["sudo", "smartctl", "-A", "-n", "standby", drive]
+            if drive_type:
+                cmd.extend(["-d", drive_type])
             result = subprocess.run(
-                ["sudo", "smartctl", "-A", "-n", "standby", drive],
+                cmd,
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,

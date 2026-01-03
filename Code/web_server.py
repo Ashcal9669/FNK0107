@@ -54,7 +54,7 @@ def parse_drive_list(raw):
     return [d.strip() for d in (raw or "").split(",") if d.strip()]
 
 
-def detect_hdd_drives():
+def parse_scan_open():
     try:
         output = subprocess.check_output(
             ["smartctl", "--scan-open"],
@@ -68,10 +68,21 @@ def detect_hdd_drives():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-        device = line.split()[0]
-        if device.startswith("/dev/sd"):
-            drives.append(device)
-    return sorted(set(drives))
+        parts = line.split()
+        device = parts[0]
+        if not device.startswith("/dev/sd"):
+            continue
+        drive_type = None
+        if "-d" in parts:
+            idx = parts.index("-d")
+            if idx + 1 < len(parts):
+                drive_type = parts[idx + 1]
+        drives.append((device, drive_type))
+    return drives
+
+
+def detect_hdd_drives():
+    return sorted({drive for drive, _ in parse_scan_open()})
 
 
 def read_env_file(path):
@@ -170,16 +181,22 @@ def get_hdd_temps():
     env.update(read_env_dir("/etc/freenove-hdd-fan.conf.d"))
     drives_raw = env.get("FREENOVE_HDD_DRIVES", "auto")
     drives = parse_drive_list(drives_raw)
+    scan = parse_scan_open()
+    scan_map = {drive: drive_type for drive, drive_type in scan}
     if not drives or drives_raw.lower() == "auto":
-        drives = detect_hdd_drives()
+        drives = [drive for drive, _ in scan]
     exclude = parse_drive_list(env.get("FREENOVE_HDD_EXCLUDE", ""))
     if exclude:
         drives = [drive for drive in drives if drive not in exclude]
     temps = {}
     for drive in drives:
+        drive_type = scan_map.get(drive)
         try:
+            cmd = ["smartctl", "-A", "-n", "standby", drive]
+            if drive_type:
+                cmd.extend(["-d", drive_type])
             result = subprocess.run(
-                ["smartctl", "-A", "-n", "standby", drive],
+                cmd,
                 check=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
