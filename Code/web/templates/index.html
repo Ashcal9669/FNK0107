@@ -103,16 +103,7 @@
             </div>
             <div class="meter"><span id="case-pwm-2-bar"></span></div>
           </div>
-          <div class="metric metric-wide">
-            <div class="metric-top">
-              <span class="metric-label">HDD Temps</span>
-              <span class="metric-value" id="hdd-temp-max">--</span>
-            </div>
-            <div class="metric-sub" id="hdd-temp-list">--</div>
-            <div class="meter"><span id="hdd-temp-bar"></span></div>
-          </div>
         </div>
-        <div class="metric-grid hdd-grid" id="hdd-drive-grid"></div>
       </section>
 
       <section class="card" style="--delay: 0.1s">
@@ -286,50 +277,6 @@
           <div class="debug-row"><span>Threshold</span><span id="dbg-fan-threshold">--</span></div>
           <div class="debug-row"><span>Temp Speeds</span><span id="dbg-fan-temp-speed">--</span></div>
           <div class="debug-row"><span>Pi Follow Map</span><span id="dbg-fan-pi-follow">--</span></div>
-        </div>
-      </section>
-
-      <section class="card" style="--delay: 0.19s">
-        <div class="card-header">
-          <div>
-            <h2>HDD Controller</h2>
-            <p>External drive temps and PWM controller status.</p>
-          </div>
-        </div>
-        <div class="debug-list">
-          <div class="debug-row"><span>Service</span><span id="hdd-service-status">--</span></div>
-          <div class="debug-row"><span>Drives</span><span id="hdd-drives">--</span></div>
-          <div class="debug-row"><span>Max Temp</span><span id="hdd-max-temp">--</span></div>
-          <div class="debug-row"><span>Poll (sec)</span><span id="hdd-poll">--</span></div>
-          <div class="debug-row"><span>PWM Period</span><span id="hdd-period">--</span></div>
-        </div>
-        <div class="controller-actions">
-          <button class="secondary" type="button" id="hdd-toggle">Start</button>
-          <button class="ghost" type="button" id="hdd-save">Save</button>
-        </div>
-        <div class="controller-form">
-          <label class="field">
-            <span>Drives</span>
-            <input type="text" id="hdd-drive-input" placeholder="auto or /dev/sda,/dev/sdb" />
-          </label>
-          <label class="field">
-            <span>Exclude</span>
-            <input type="text" id="hdd-exclude-input" placeholder="/dev/sdb" />
-          </label>
-          <div class="field-row">
-            <label class="field">
-              <span>Poll</span>
-              <input type="number" id="hdd-poll-input" min="5" max="600" />
-            </label>
-            <label class="field">
-              <span>PWM Period</span>
-              <input type="number" id="hdd-period-input" min="1000" max="1000000" />
-            </label>
-            <label class="field">
-              <span>Default Temp</span>
-              <input type="number" id="hdd-default-temp-input" min="0" max="100" />
-            </label>
-          </div>
         </div>
       </section>
 

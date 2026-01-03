@@ -189,33 +189,6 @@ body::before {
   gap: 12px;
 }
 
-.hdd-grid {
-  margin-top: 12px;
-}
-
-.metric-drive {
-  background: #fbfbfb;
-  border: 1px solid rgba(31, 41, 51, 0.08);
-}
-
-.metric-drive .metric-label {
-  font-size: 12px;
-}
-
-.metric-drive .metric-value {
-  font-size: 14px;
-}
-
-.metric-wide {
-  grid-column: 1 / -1;
-}
-
-.metric-sub {
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-
 .metric {
   background: #f6f6f6;
   border-radius: 14px;

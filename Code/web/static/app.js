@@ -234,7 +234,6 @@ async function loadConfig() {
   const led = config.LED || {};
   const fan = config.Fan || {};
   const oled = config.OLED || {};
-  const hddConfig = await fetchJson("/api/hdd-config");
 
   setSelectedValue("led-mode", led.mode ?? 0);
   syncLedSliders(led.red_value ?? 0, led.green_value ?? 0, led.blue_value ?? 255);
@@ -277,22 +276,6 @@ async function loadConfig() {
   $("task-fan").checked = !!fan.is_run_on_startup;
   $("task-oled").checked = !!oled.is_run_on_startup;
 
-  const hdd = hddConfig.config || {};
-  $("hdd-drive-input").value = hdd.FREENOVE_HDD_DRIVES || "auto";
-  $("hdd-exclude-input").value = hdd.FREENOVE_HDD_EXCLUDE || "";
-  $("hdd-poll-input").value = hdd.FREENOVE_HDD_POLL_SECONDS || 30;
-  $("hdd-period-input").value = hdd.FREENOVE_HDD_PWM_PERIOD || 40000;
-  $("hdd-default-temp-input").value = hdd.FREENOVE_HDD_DEFAULT_TEMP || 25;
-  const serviceState = hddConfig.service ? hddConfig.service.active : null;
-  setHddToggleLabel(serviceState);
-}
-
-function setHddToggleLabel(state) {
-  const button = $("hdd-toggle");
-  if (!button) {
-    return;
-  }
-  button.textContent = state === "active" ? "Stop" : "Start";
 }
 
 function updateStatus(data) {
@@ -332,49 +315,6 @@ function updateStatus(data) {
   const rpiPercent = clamp((rpiPwm / 255) * 100, 0, 100);
   setText("rpi-pwm", `${rpiPercent.toFixed(1)}%`);
   setMeter("rpi-pwm-bar", rpiPercent);
-
-  const hdd = system.hdd || {};
-  const hddTemps = hdd.temps || {};
-  const hddMax = hdd.max_temp != null ? Number(hdd.max_temp) : null;
-  const hddGrid = $("hdd-drive-grid");
-  if (hddGrid) {
-    hddGrid.innerHTML = "";
-    const drives = Object.keys(hddTemps);
-    if (drives.length === 0) {
-      hddGrid.innerHTML = '<div class="metric metric-drive"><div class="metric-top"><span class="metric-label">HDD</span><span class="metric-value">--</span></div></div>';
-    } else {
-      drives.sort().forEach((drive) => {
-        const temp = Number(hddTemps[drive]);
-        const percent = Number.isFinite(temp) ? clamp((temp / 60) * 100, 0, 100) : 0;
-        const card = document.createElement("div");
-        card.className = "metric metric-drive";
-        card.innerHTML = `
-          <div class="metric-top">
-            <span class="metric-label">${drive}</span>
-            <span class="metric-value">${Number.isFinite(temp) ? temp.toFixed(1) + "C" : "--"}</span>
-          </div>
-          <div class="meter"><span style="width:${percent}%"></span></div>
-        `;
-        hddGrid.appendChild(card);
-      });
-    }
-  }
-  const hddList = Object.keys(hddTemps).length
-    ? Object.entries(hddTemps)
-        .map(([drive, temp]) => `${drive}: ${temp}C`)
-        .join(" | ")
-    : "--";
-  setText("hdd-temp-max", hddMax == null ? "--" : `${hddMax.toFixed(1)}C`);
-  setText("hdd-temp-list", hddList);
-  setMeter("hdd-temp-bar", hddMax == null ? 0 : clamp((hddMax / 60) * 100, 0, 100));
-
-  const hddConfig = hdd.config || {};
-  setText("hdd-service-status", hdd.service ? hdd.service.active || "--" : "--");
-  setText("hdd-drives", hdd.drives ? hdd.drives.join(", ") : "--");
-  setText("hdd-max-temp", hddMax == null ? "--" : `${hddMax.toFixed(1)}C`);
-  setText("hdd-poll", hddConfig.FREENOVE_HDD_POLL_SECONDS || "--");
-  setText("hdd-period", hddConfig.FREENOVE_HDD_PWM_PERIOD || "--");
-  setHddToggleLabel(hdd.service ? hdd.service.active : null);
 
   const fanDuty = Array.isArray(expansion.fan_duty) ? expansion.fan_duty : [];
   const pwm1 = fanDuty.length > 0 ? clamp((fanDuty[0] / 255) * 100, 0, 100) : 0;
@@ -523,43 +463,6 @@ async function applyRpiFan() {
   }
 }
 
-async function applyHddConfig() {
-  const payload = {
-    FREENOVE_HDD_DRIVES: $("hdd-drive-input").value,
-    FREENOVE_HDD_EXCLUDE: $("hdd-exclude-input").value,
-    FREENOVE_HDD_POLL_SECONDS: $("hdd-poll-input").value,
-    FREENOVE_HDD_PWM_PERIOD: $("hdd-period-input").value,
-    FREENOVE_HDD_DEFAULT_TEMP: $("hdd-default-temp-input").value,
-  };
-  try {
-    await fetchJson("/api/hdd-config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    showToast("HDD settings saved and controller started");
-    refreshStatus();
-  } catch (err) {
-    showToast(err.message || "HDD settings failed", true);
-  }
-}
-
-async function toggleHddService() {
-  const current = $("hdd-service-status").textContent || "";
-  const enable = current !== "active";
-  try {
-    const data = await fetchJson("/api/hdd-service", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enable }),
-    });
-    setHddToggleLabel(data.status ? data.status.active : null);
-    refreshStatus();
-  } catch (err) {
-    showToast(err.message || "HDD service failed", true);
-  }
-}
-
 async function applyTasks() {
   const payload = {
     led: $("task-led").checked,
@@ -602,8 +505,6 @@ function setupListeners() {
   $("led-custom-toggle").addEventListener("click", () => toggleProcess("led"));
   $("fan-custom-toggle").addEventListener("click", () => toggleProcess("fan"));
   $("oled-toggle").addEventListener("click", () => toggleProcess("oled"));
-  $("hdd-toggle").addEventListener("click", toggleHddService);
-  $("hdd-save").addEventListener("click", applyHddConfig);
 
   $("led-color-picker").addEventListener("input", (event) => {
     const rgb = hexToRgb(event.target.value);
