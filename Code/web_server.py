@@ -178,11 +178,15 @@ def get_hdd_temps():
     temps = {}
     for drive in drives:
         try:
-            output = subprocess.check_output(
+            result = subprocess.run(
                 ["smartctl", "-A", "-n", "standby", drive],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
                 text=True,
                 timeout=2,
             )
+            output = result.stdout
             temp_value = None
             for line in output.splitlines():
                 if "Temperature_Celsius" in line or "Airflow_Temperature_Cel" in line:

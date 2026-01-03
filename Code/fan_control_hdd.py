@@ -86,10 +86,14 @@ def get_max_hdd_temp():
     temps = []
     for drive in DRIVES:
         try:
-            output = subprocess.check_output(
+            result = subprocess.run(
                 ["sudo", "smartctl", "-A", "-n", "standby", drive],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
                 text=True,
             )
+            output = result.stdout
             for line in output.splitlines():
                 if "Temperature_Celsius" in line or "Airflow_Temperature_Cel" in line:
                     temp = int(line.split()[9])
