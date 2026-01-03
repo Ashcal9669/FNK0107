@@ -1,0 +1,12 @@
+# Comma-separated drive list
+FREENOVE_HDD_DRIVES=/dev/sda,/dev/sdb
+
+# PWM chip base and period (nanoseconds)
+FREENOVE_HDD_PWM_BASE=/sys/class/pwm/pwmchip0
+FREENOVE_HDD_PWM_PERIOD=40000
+
+# Default temp if drives are sleeping
+FREENOVE_HDD_DEFAULT_TEMP=25
+
+# Poll interval in seconds
+FREENOVE_HDD_POLL_SECONDS=30

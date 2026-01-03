@@ -1,0 +1,14 @@
+[Unit]
+Description=Freenove HDD PWM Fan Control
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/FNK0107/Code
+EnvironmentFile=-/etc/freenove-hdd-fan.conf
+ExecStart=/opt/FNK0107/Code/.venv/bin/python /opt/FNK0107/Code/fan_control_hdd.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
