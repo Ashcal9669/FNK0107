@@ -1,8 +1,11 @@
-import threading
 import atexit
+import json
+import os
 import signal
-import time
 import sys
+import threading
+import time
+
 from api_expansion import Expansion
 
 class LED_TASK:
@@ -48,6 +51,28 @@ class LED_TASK:
         self.cleanup()
         sys.exit(0)
 
+    def _load_brightness(self):
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app_config.json")
+        try:
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            value = data.get("LED", {}).get("brightness", 100)
+        except Exception:
+            value = 100
+        try:
+            value = int(value)
+        except (TypeError, ValueError):
+            value = 100
+        return max(0, min(100, value))
+
+    def _scale_color(self, r, g, b, brightness):
+        scale = brightness / 100.0
+        return (
+            int(round(r * scale)),
+            int(round(g * scale)),
+            int(round(b * scale)),
+        )
+
     def show_single_color(self):
         """Main monitoring loop - single-threaded infinite loop for both OLED display and fan control"""
         rainbow_colors = [
@@ -66,10 +91,14 @@ class LED_TASK:
         ]
         r,g,b = rainbow_colors[0]
         self.expansion.set_led_mode(1)
+        brightness = self._load_brightness()
+        r,g,b = self._scale_color(r, g, b, brightness)
         self.expansion.set_all_led_color(r,g,b)
         while not self.stop_event.is_set():
             for i in range(len(rainbow_colors)):
+                brightness = self._load_brightness()
                 r,g,b = rainbow_colors[i]
+                r,g,b = self._scale_color(r, g, b, brightness)
                 self.expansion.set_all_led_color(r,g,b)
                 time.sleep(0.5)
 
@@ -97,7 +126,9 @@ class LED_TASK:
         self.expansion.set_led_mode(1)
         while not self.stop_event.is_set():
             for i in range(255):
+                brightness = self._load_brightness()
                 r,g,b = self.wheel(i)
+                r,g,b = self._scale_color(r, g, b, brightness)
                 self.expansion.set_all_led_color(r,g,b)
                 time.sleep(0.05)
 

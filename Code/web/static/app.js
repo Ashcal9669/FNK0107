@@ -192,16 +192,19 @@ function setSelectedValue(name, value) {
   }
 }
 
-function setLedControlsEnabled(enabled) {
-  ["led-color-picker", "led-red", "led-green", "led-blue", "led-brightness"].forEach((id) => {
-    $(id).disabled = !enabled;
+function setLedControlsEnabled(mode) {
+  const colorEnabled = [1, 2, 3].includes(mode);
+  const brightnessEnabled = [0, 1, 2, 3].includes(mode);
+  ["led-color-picker", "led-red", "led-green", "led-blue"].forEach((id) => {
+    $(id).disabled = !colorEnabled;
   });
+  $("led-brightness").disabled = !brightnessEnabled;
 }
 
 function toggleLedCustom(mode) {
   const show = mode === 4;
   $("led-custom-row").classList.toggle("hidden", !show);
-  setLedControlsEnabled([1, 2, 3].includes(mode));
+  setLedControlsEnabled(mode);
 }
 
 function toggleFanSections(mode) {

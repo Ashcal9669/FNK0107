@@ -145,7 +145,7 @@ def write_config(update_fn):
 def apply_led_mode(mode, color, brightness):
     scaled = scale_led_color(color, brightness)
     if mode == 0:
-        return "rainbow", [("set_led_mode", 4)]
+        return "rainbow", []
     if mode == 1:
         return "breathing", [("set_led_mode", 3), ("set_all_led_color", *scaled)]
     if mode == 2:
@@ -422,8 +422,10 @@ def api_led():
         config_manager.set_value("LED", "brightness", brightness)
         config_manager.save_config()
 
-    if mode == 4:
+    if mode in (0, 4):
         set_process("led", True)
+        if mode == 0:
+            return jsonify({"ok": True})
     else:
         set_process("led", False)
         exp, exp_err = try_expansion()
