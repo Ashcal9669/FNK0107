@@ -162,27 +162,24 @@ def select_case_duty(temp_c, thresholds, speeds, last_band):
         return speeds[1], last_band
     low_t, high_t, schmitt = thresholds
     low_speed, mid_speed, high_speed = speeds
-    band = last_band
-    if band is None:
-        if temp_c >= high_t:
-            band = "high"
-        elif temp_c <= low_t:
-            band = "low"
-        else:
-            band = "mid"
-    if band == "high":
-        if temp_c <= high_t - schmitt:
-            band = "mid"
-    elif band == "low":
-        if temp_c >= low_t + schmitt:
-            band = "mid"
+    if high_t <= low_t:
+        return mid_speed, "mid"
+    mid_t = (low_t + high_t) / 2.0
+    if temp_c <= low_t:
+        return low_speed, "low"
+    if temp_c >= high_t:
+        return high_speed, "high"
+    if last_band == "low" and temp_c < low_t + schmitt:
+        return low_speed, "low"
+    if last_band == "high" and temp_c > high_t - schmitt:
+        return high_speed, "high"
+    if temp_c <= mid_t:
+        ratio = (temp_c - low_t) / (mid_t - low_t) if mid_t > low_t else 0.0
+        duty = low_speed + (mid_speed - low_speed) * ratio
     else:
-        if temp_c >= high_t:
-            band = "high"
-        elif temp_c <= low_t:
-            band = "low"
-    duty = high_speed if band == "high" else low_speed if band == "low" else mid_speed
-    return duty, band
+        ratio = (temp_c - mid_t) / (high_t - mid_t) if high_t > mid_t else 0.0
+        duty = mid_speed + (high_speed - mid_speed) * ratio
+    return int(round(duty)), "mid"
 
 
 def apply_fan_mode(mode, manual_duty, thresholds, speeds, pi_follow, pi_pwm, case_temp):
