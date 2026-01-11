@@ -194,7 +194,7 @@ function setSelectedValue(name, value) {
 
 function setLedControlsEnabled(mode) {
   const colorEnabled = [1, 2, 3].includes(mode);
-  const brightnessEnabled = [0, 1, 2, 3].includes(mode);
+  const brightnessEnabled = [1, 2, 3].includes(mode);
   ["led-color-picker", "led-red", "led-green", "led-blue"].forEach((id) => {
     $(id).disabled = !colorEnabled;
   });
