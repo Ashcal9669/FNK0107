@@ -1,4 +1,4 @@
-# FNK0107
+# FNK0107U, FNK0107V, FNK0107W
 
 Control UI + services for the FNK0107 case (Pi 5).
 
