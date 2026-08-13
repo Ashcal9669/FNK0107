@@ -4,7 +4,7 @@ Control UI + services for the FNK0107 case (Pi 5).
 
 ## Install (Pi)
 
-Headless install on Debian/Ubuntu:
+Headless install on Debian/Ubuntu/Kali:
 
 ```bash
 sudo git clone https://github.com/Ashcal9669/FNK0107.git /opt/FNK0107
