@@ -1,4 +1,4 @@
-# FNK0107U, FNK0107V, FNK0107W
+# FNK0107U, FNK0107V, FNK0107W - Freenove Computer Case Kit Pro for Raspberry Pi
 
 Control UI + services for the FNK0107 case (Pi 5).
 
