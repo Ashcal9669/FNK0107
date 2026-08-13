@@ -21,7 +21,7 @@ fi
 
 echo "Installing system packages..."
 apt-get update
-apt-get install -y python3 python3-venv python3-pip i2c-tools
+apt-get install -y python3 python3-venv python3-pip i2c-tools python3-dev python3-luma.oled 
 
 echo "Setting up Python virtual environment..."
 python3 -m venv "${VENV_DIR}"
@@ -71,6 +71,8 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now "${SERVICE_NAME}"
+
+cd
 
 echo "Service installed: ${SERVICE_NAME}"
 echo "Open http://<pi-ip>:8080 from another device on the same network."
